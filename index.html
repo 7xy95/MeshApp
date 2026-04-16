@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Mesh Wallet</title>
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            background-color: #252f39;
+            color: #dfe6ed;
+        }
+        input {
+            background-color: #999ca8;
+            font-family: Monaco;
+            border-radius: 0;
+            border: none;
+        }
+        .page {
+            width: 100vw;
+            height: 100vh;
+            font-family: Monaco;
+            display: flex;
+        }
+        .logInPanel {
+            font-family: Monaco;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            width: 100vw;
+            height: 100vh;
+        }
+        .mainPanel {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            font-family: Monaco;
+        }
+        .panel {
+            background-color: #1c2229;
+            border-radius: 3px;
+            font-size: 16px;
+            position: relative;
+        }
+        .mainText {
+            font-size: 24px;
+        }
+        .left {
+            width: 350px;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        .left .panel {
+            flex: 1;
+            margin-top: 12px;
+            margin-left: 12px;
+        }
+        .right .panel {
+            flex: 1;
+            margin: 12px;
+        }
+        .right {
+            flex: 1;
+            height: 100%;
+            display: flex;
+        }
+        .btn {
+            margin-top: 30px;
+            background-color: #e9ecef;
+            color: #0c24bc;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 2px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn:hover {
+            background-color: #3387f4;
+            transform: scale(1.025);
+        }
+        .topBar {
+            padding: 12px 16px 0 16px;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+<div id="logInPanel" class="logInPanel">
+    <p class="enterSeed" id="enterSeedText">Enter wallet seed:</p>
+    <input type="password" id="walletSeedInput">
+    <button class="btn" type="submit" onclick="logIn()">Log In</button>
+</div>
+<div id="mainPanel" class="mainPanel" style="display: none">
+    <div class="topBar">
+        <p id="vBalanceTop" style="font-size: 24px; margin-top: -5px">Balance: 0.000 MESH</p>
+        <p id="addressTop" style="font-size: 12px; margin-top: -20px">Address: 0000000000000000000000000000000000000000</p>
+        <hr>
+    </div>
+    <div class="page">
+        <div class="left">
+            <div class="panel">
+                <p id="vBalance" class="mainText"></p>
+                <p id="unVBalance" class="mainText"></p>
+                <p id="address" class="mainText"></p>
+            </div>
+            <div class="panel">
+                <p id="version"></p>
+                <p id="difficulty"></p>
+                <p id="blockCount"></p>
+                <p id="blockReward"></p>
+            </div>
+            <div class="panel" style="margin-bottom: 12px">
+                <p id="mining"></p>
+            </div>
+        </div>
+
+        <div class="right">
+            <div class="panel">
+
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    let privateKey = ""
+    let publicKey = ""
+    let address = ""
+
+    const crypto = require("crypto")
+    const { secp256k1 } = require("@noble/curves/secp256k1.js")
+
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms))
+    }
+
+    function sha256(data) {
+        return crypto.createHash("sha256").update(data).digest()
+    }
+    function hash160(data) {
+        return crypto.createHash("ripemd160").update(sha256(data)).digest()
+    }
+    function seedToAddress(seedText) {
+        privateKey = sha256(Buffer.from(seedText, "utf-8"))
+        publicKey = Buffer.from(secp256k1.getPublicKey(privateKey, true))
+        address = hash160(publicKey).toString("hex")
+    }
+    function split_(text) {
+        text = text.trim()
+        let result = []
+        let current = ""
+        let inString = false
+        for (let i = 1; i < text.length - 1; i++) {
+            let ch = text[i]
+            if (ch === "'") {
+                inString = !inString
+                continue
+            }
+            if (ch === "," && !inString) {
+                result.push(current)
+                current = ""
+                continue
+            }
+            current += ch
+        }
+        if (current) result.push(current);
+        return result;
+    }
+    function getNextNonce(address) {
+        let nonce = 0
+        let [from, n] = ["", ""]
+        for (let block of blocks) {
+            let index = block.indexOf(",")
+            let txs = block.slice(index+1)
+            txs = split_(txs)
+            for (let tx of txs) {
+                if (!tx.startsWith("SYSTEM|")) {
+                    if (tx.startsWith("MSG|")) {[, from, , ,n] = tx.split("||")[0].split("|")}
+                    else {[from, , ,n] = tx.split("||")[0].split("|")}
+                    if (from === address) {nonce = Math.max(nonce, Number(n))}
+                }
+            }
+        }
+        for (let tx of mempool) {
+            if (tx.startsWith("SYSTEM|")) {continue}
+            if (tx.startsWith("MSG|")) {[, from, , ,n] = tx.split("||")[0].split("|")}
+            else {[from, , ,n] = tx.split("||")[0].split("|")}
+            if (from === address) {nonce = Math.max(nonce, Number(n))}
+        }
+        return nonce + 1
+    }
+    function getMinerRewards(txs) {
+        let total = 0
+        for (let tx of txs) {
+            if (tx.startsWith("MSG|") || tx.startsWith("SYSTEM|")) {continue}
+            total += getFee(Number(tx.split("||")[0].split("|")[2]))
+        }
+        return total
+    }
+    function getSpendableBalance(address, ignoreTx="") {
+        let vBalance = 0
+        for (let block of blocks) {
+            let index = block.indexOf(",")
+            block = block.slice(index+1)
+            let txs = split_(block)
+            let i = -1
+            for (let tx of txs) {
+                i++
+                if (tx.startsWith("SYSTEM|")) {
+                    let parts = tx.split("|")
+                    if (parts[1] === address) {
+                        vBalance += Number(parts[2])
+                        if (i === 0) {vBalance += getMinerRewards(txs)}
+                    }
+                }
+                else {
+                    tx = tx.split("||")[0]
+                    if (tx.startsWith("MSG|")) {
+                        let [, from, , amount, ,] = tx.split("|")
+                        if (from === address) {vBalance -= Number(amount)}
+                        continue
+                    }
+                    let [from, to, amount,] = tx.split("|")
+                    if (from === address) {vBalance -= Number(amount)}
+                    if (to === address) {vBalance += Number(amount) - getFee(Number(amount))}
+                }
+            }
+        }
+        for (let tx of mempool) {
+            if (tx === ignoreTx) {continue}
+            let from = ""; let amount = 0
+            tx = tx.split("||")[0]
+            if (tx.startsWith("MSG|")) {[, from, , amount, ,] = tx.split("|")}
+            else {[from, , amount,] = tx.split("|")}
+            amount = Number(amount)
+            if (from === address) {vBalance -= amount}
+        }
+        return vBalance
+    }
+    function getConfirmedBalances() {
+        let balances = {}
+        for (let block of blocks) {
+            let index = block.indexOf(",")
+            let txs = split_(block.slice(index+1))
+            let i = -1
+            for (let tx of txs) {
+                i++
+                if (tx.startsWith("SYSTEM|")) {
+                    let [, to, amount,] = tx.split("|")
+                    amount = Number(amount)
+                    if (i === 0) {balances[to] = (balances[to]||0) + amount + getMinerRewards(txs)}
+                    else {balances[to] = (balances[to]||0) + amount}
+                }
+                else {
+                    tx = tx.split("||")[0]
+                    if (tx.startsWith("MSG|")) {
+                        let [, from, , amount, ,] = tx.split("|")
+                        amount = Number(amount)
+                        balances[from] = (balances[from]||0) - amount
+                    }
+                    else {
+                        let [from, to, amount,] = tx.split("|")
+                        amount = Number(amount)
+                        balances[from] = (balances[from]||0) - amount
+                        balances[to] = (balances[to]||0) + amount - getFee(amount)
+                    }
+                }
+            }
+        }
+        return balances
+    }
+    function getBalance(address) {
+        let vBalance = 0
+        for (let block of blocks) {
+            let index = block.indexOf(",")
+            block = block.slice(index+1)
+            let txs = split_(block)
+            let i = -1
+            for (let tx of txs) {
+                i++
+                if (tx.startsWith("SYSTEM|")) {
+                    let parts = tx.split("|")
+                    if (parts[1] === address) {
+                        vBalance += Number(parts[2])
+                        if (i === 0) {vBalance += getMinerRewards(txs)}
+                    }
+                }
+                else {
+                    tx = tx.split("||")[0]
+                    if (tx.startsWith("MSG|")) {
+                        let [, from, , amount, ,] = tx.split("|")
+                        if (from === address) {vBalance -= Number(amount)}
+                        continue
+                    }
+                    let [from, to, amount,] = tx.split("|")
+                    if (from === address) {vBalance -= Number(amount)}
+                    if (to === address) {vBalance += Number(amount) - getFee(Number(amount))}
+                }
+            }
+        }
+        let balance = vBalance
+        for (let tx of mempool) {
+            let from = ""; let to = ""; let amount = 0
+            tx = tx.split("||")[0]
+            if (tx.startsWith("MSG|")) {[, from, to, amount, ,] = tx.split("|")}
+            else {[from, to, amount,] = tx.split("|")}
+            amount = Number(amount)
+            if (from === address) {balance -= amount}
+            if (to === address) {balance += amount - getFee(amount)}
+        }
+        return [vBalance, balance]
+    }
+    function getDifficultyFromTs(prevTs, nextTs) {
+        const TARGET = 300
+        let gap = nextTs - prevTs
+        let diff = (gap-TARGET)/TARGET
+        diff = Math.max(Math.min(diff, 0.3), -0.3)
+        return Math.round(diff*100)/100
+    }
+    function getDifficultyFromTs2(prevTs, nextTs) {
+        const TARGET = 300
+        let avg = (nextTs - prevTs)/5
+        let diff = (avg-TARGET)/TARGET
+        diff = Math.max(Math.min(diff, 0.3), -0.3)
+        return Math.round(diff*100)/100
+    }
+    function getDifficulty(blockIndex) {
+        return BigInt(2**getDifficultyBits(blockIndex))
+    }
+    function getTs(block) {
+        let header = block.split(",")[0]
+        return Number(header.split("|")[2])
+    }
+    function getDifficultyBits(blockIndex) {
+        let tss = []
+        let blocks_ = blocks.slice(0, blockIndex)
+        for (let block of blocks_) {
+            tss.push(getTs(block))
+        }
+        let net = 0
+        for (let i=1; i<tss.length; i++) {
+            if (i <= 155) {net += getDifficultyFromTs(tss[i-1], tss[i])}
+            else {net += getDifficultyFromTs2(tss[i-5], tss[i])}
+        }
+        return 230+net
+    }
+    function getBlockReward(blockIndex) {
+        if (blockIndex < 5_000) return 10000
+        if (blockIndex < 15_000) return 5000
+        if (blockIndex < 35_000) return 2500
+        if (blockIndex < 75_000) return 1250
+        if (blockIndex < 155_000) return 625
+        if (blockIndex < 315_000) return 313
+        if (blockIndex < 635_000) return 156
+        if (blockIndex < 1_275_000) return 78
+        if (blockIndex < 2_555_000) return 39
+        if (blockIndex < 5_115_000) return 20
+        if (blockIndex < 10_235_000) return 10
+        if (blockIndex < 20_475_000) return 5
+        if (blockIndex < 40_955_000) return 2
+        else return 1
+    }
+    function getFee(amount) {
+        if (amount > 10) {return Math.max(10, Math.ceil(amount*0.01))}
+        else {return amount}
+    }
+
+    let forkCase = false
+    let id = 0
+    let mempool = []
+    let blocks = []
+    const url = "https://roman-expanding-alias-talent.trycloudflare.com/"
+    async function send(message, nodeId) {
+        await fetch(url + "sendMessage", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+                toId: nodeId,
+                fromId: id,
+                message: message
+            })
+        })
+    }
+    async function deleteMsg(rowId) {
+        await fetch(url + "deleteMessageRow", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({rowId: rowId})
+        })
+    }
+    async function read(timeout=5) {
+        let response = await fetch(url + `nextMessage?id=${id}&timeout=${timeout}`)
+        response = await response.json()
+        return [response.message, response.senderId, response.rowId]
+    }
+    async function getIds() {
+        let response = await fetch(url + "allIds")
+        let data = await response.json()
+        return data.ids
+    }
+    async function newId() {
+        let response = await fetch(url + "newId")
+        let data = await response.json()
+        return data.id
+    }
+    async function start() {
+        let ids = await getIds()
+        if (ids.length === 0) {return}
+        id = await newId()
+        let idMaxCount = 0
+        let maxCount = 0
+        for (let i=0; i<Math.min(ids.length, 5); i++){
+            let idVal = ids[i]
+            await send("getBlockCount", idVal)
+            while (true) {
+                let [message, senderId, rowId] = await read()
+                if (message.startsWith("noResponse")) {break}
+                if (!message.startsWith("r:getBlockCount:") || senderId !== idVal) {
+                    await deleteMsg(rowId)
+                    continue
+                }
+                let blockCount = message.slice(16)
+                if (blockCount >= maxCount) {
+                    maxCount = blockCount
+                    idMaxCount = idVal
+                }
+                break
+            }
+        }
+        //todo length should also be verified from returned blocks
+        await send("getBlocks", idMaxCount)
+        while (true) {
+            let [message, senderId, rowId] = await read()
+            if (!message.startsWith("r:getBlocks:") || senderId !== idMaxCount) {
+                await deleteMsg(rowId)
+                continue
+            }
+            let blocks_ = split_(message.slice(12))
+            for (let i=0; i<blocks_.length; i++) {
+                let block = blocks_[i]
+            }
+            //todo verify received blocks and add to blocks
+        }
+
+        await send("getMempool", idMaxCount)
+        while (true) {
+            let [message, senderId, rowId] = await read()
+            if (!message.startsWith("r:getMempool:") || senderId !== idMaxCount) {
+                await deleteMsg(rowId)
+                continue
+            }
+            let mempool_ = message.slice(15)
+            if (mempool_ !== ""){
+                mempool_ = split_(mempool_)
+                for (let tx=0; tx<mempool_.length; tx++) {
+                    if (mempool_[tx].startsWith("MSG")) {
+                        if (verifyMsg(mempool_[tx])) {mempool.push(mempool_[tx])}
+                    }
+                    else if (verifyTx(mempool_[tx])) {mempool.push(mempool_[tx])}
+                }
+                await deleteMsg(rowId)
+                break
+            }
+        }
+        refresh()
+        check()
+
+    }
+    function setBalance(addr) {
+        let v = document.getElementById("vBalance")
+        let unV = document.getElementById("unVBalance")
+    }
+    function checkDuplicateTx(address, nonce) {
+        try {
+            let i = -1
+            for (let block of blocks) {
+                i++
+                let index = block.indexOf(",")
+                let txs = split_(block.slice(index+1))
+                for (let tx of txs) {
+                    let from = ""; let n = ""
+                    if (tx.startsWith("SYSTEM|")) {continue}
+                    if (tx.startsWith("MSG|")) {[, from, , , n, ] = tx.split("||")[0].split("|")}
+                    else {[from, , ,n] = tx.split("||")[0].split("|")}
+                    if (from === address && n == nonce) {return true}
+                }
+            }
+            return false
+        }
+        catch (error) {return true}
+    }
+    function verifyTx(tx, checkMempool=true) {
+        try {
+            let [tx, pubKey, sig] = tx.split("||")
+            pubKey = Buffer.from(pubKey, "hex")
+            sig = Buffer.from(sig, "hex")
+            let parts = tx.split("|")
+            if (parts.length !== 4) {return false}
+            let [from, to, amount, nonce] = parts
+            amount = Number(amount); nonce = Number(nonce)
+            if (amount < 1) {return false}
+            if (checkMempool && nonce < getNextNonce(from)) {return false}
+            let txHash = sha256(Buffer.from(tx, "utf-8"))
+            if (!secp256k1.verify(sig, txHash, pubKey)) {return false}
+            if (from !== hash160(pubKey).toString("hex")) {return false}
+            if (checkMempool && amount > getSpendableBalance(from, tx)) {return false}
+            return true
+        }
+        catch (error) {
+            return false
+        }
+    }
+    function verifyMsg(msg, checkMempool=true) {
+        try {
+            let [tx, pubKey, sig] = msg.split("||")
+            pubKey = Buffer.from(pubKey, "hex")
+            sig = Buffer.from(sig, "hex")
+            let parts = tx.split("|")
+            if (parts.length !== 6) {return false}
+            let [kind, from, to, amount, nonce, message] = parts
+            if (kind !== "MSG") {return false}
+            amount = Number(amount); nonce = Number(nonce)
+            message = Buffer.from(message, "hex")
+            if (amount !== 1000) {return false}
+            let txHash = sha256(Buffer.from(tx, "utf-8"))
+            if (checkMempool && nonce < getNextNonce(from)) {return false}
+            if (!secp256k1.verify(sig, txHash, pubKey)) {return false}
+            if (from !== hash160(pubKey).toString("hex")) {return false}
+            if (checkMempool && amount > getSpendableBalance(from, tx)) {return false}
+            return true
+        }
+        catch (error) {
+            return false
+        }
+    }
+    function verifyBlock(block) {
+        try {
+            let index = block.indexOf(",")
+            let header = block.slice(0, index)
+            let txs = block.slice(index+1)
+            txs = split_(txs)
+            let parts = header.split("|")
+            if (parts.length !== 4) {return false}
+            let [priorHash, merkleRoot, ts, nonce] = parts
+            ts = Number(ts)
+            if (ts >= Math.round(Date.now()/1000)+60) {return false}
+            nonce = Number(nonce)
+            if (txs.length === 0) {return false}
+            let combined = ""
+            for (let i=0; i<txs.length; i++) {
+                combined += txs[i]
+            }
+            if (sha256(Buffer.from(combined, "utf-8")).toString("hex") !== merkleRoot) {return false}
+            let t = []
+            let from = ""; let txNonce = ""
+            for (const tx of txs.slice(1)) {
+                let tx_ = tx.split("||")[0]
+                if (tx_.startsWith("MSG|")) {
+                    [, from, , , txNonce,] = tx_.split("|")
+                    if (!verifyMsg(tx, false) || checkDuplicateTx(from, txNonce)) {return false}
+                }
+                else {
+                    [from, , , txNonce] = tx_.split("|")
+                    if (!verifyTx(tx, false) || checkDuplicateTx(from, txNonce)) {return false}
+                }
+                for (const [f, n] of t) {
+                    if (f === from && n === txNonce) {return false}
+                }
+                t.push([from, txNonce])
+            }
+            let tempBalances = getConfirmedBalances()
+            let to = ""; let amount = 0; from = ""
+            for (let tx of txs.slice(1)) {
+                tx = tx.split("||")[0]
+                if (tx.startsWith("MSG|")) {
+                    [, from, to, amount, ,] = tx.split("|")
+                    amount = 1000
+                }
+                else {
+                    [from, to, amount, ] = tx.split("|")
+                    amount = Number(amount)
+                }
+                if ((tempBalances[from] || 0) < amount) {return false}
+                tempBalances[from] = (tempBalances[from] || 0) - amount
+                tempBalances[to] = (tempBalances[to] || 0) + amount - getFee(amount)
+            }
+            let result = BigInt("0x" + sha256(sha256(Buffer.from(`${priorHash}|${merkleRoot}|${ts}|${nonce}`, "utf-8"))).toString("hex"))
+            let blockIndex = blocks.length
+            if (!txs[0].startsWith("SYSTEM|") || !txs[0].endsWith(`|${getBlockReward(blockIndex)}|0`)) {return false}
+            if (blockIndex === 0) {
+                if (priorHash !== "0".repeat(64)) {return false}
+            }
+            else {
+                index = blocks[blocks.length-1].indexOf(",")
+                let lastHeader = blocks[blocks.length-1].slice(0, index)
+                let [lHash, lRoot, lTs, lNonce] = lastHeader.split("|")
+                if (Number(lTs) > ts) {return false}
+                let expected = BigInt("0x" + sha256(sha256(Buffer.from(`${lHash}|${lRoot}|${Number(lTs)}|${Number(lNonce)}`, "utf-8"))).toString("hex")).toString(16);
+                if (priorHash !== expected) {return false}
+            }
+            if (result > BigInt(getDifficulty(blockIndex))) {return false}
+            return true
+        }
+        catch (error) {
+            return false
+        }
+    }
+
+    async function refresh() {
+        while (true) {
+            //todo refresh and display data
+            await sleep(200)
+        }
+    }
+    async function check() {
+        while (true) {//todo getRecentTxs
+            let message = ""; let senderId = 0; let rowId = null
+            try {
+                [message, senderId, rowId] = await read(0.25)
+                if (message.startsWith("verifyTx:")) {
+                    message = message.slice(9)
+                    let result = ""
+                    if (message.startsWith("MSG|")) {result = verifyMsg(message)}
+                    else {result = verifyTx(message)}
+                    if (result && !message.includes(mempool)) {mempool.push(message)}
+                }
+                else if (message.startsWith("verifyBlock:")) {
+                    message = message.slice(12)
+                    let result = verifyBlock(message)
+                    if (result) {
+                        blocks.push(message)
+                        mempool = []
+                    }
+                    else {
+                        send("getBlockCount", senderId)
+                        forkCase = true
+                    }
+                }
+                else if (message.startsWith("getMempool")) {
+                    await send(`r:getMempool:${JSON.stringify(mempool)}`, senderId)
+                }
+                else if (message.startsWith("getBlock:")) {
+                    let index = message.slice(9)
+                    let block = blocks[Number(index)]
+                    await send(`r:getBlock:${JSON.stringify(block)}`, senderId)
+                }
+                else if (message.startsWith("getBlocks")) {
+                    await send(`r:getBlocks:${JSON.stringify(blocks)}`, senderId)
+                }
+                else if (message.startsWith("getBlockCount")) {
+                    await send(`r:getBlockCount:${blocks.length}`, senderId)
+                }
+                else if (message.startsWith("getBalance:")) {
+                    let addr = message.slice(11)
+                    let [v, unV] = getBalance(addr)
+                    await send(`r:getBalance:${v},${unV}`)
+                }
+                else if (message.startsWith("getLastBlocks:")) {
+                    let amount = Number(message.slice(14))
+                    let count = blocks.length
+                    await send(`r:getLastBlocks:${blocks.slice(count-amount)}`)
+                }
+                else if (message.startsWith("getDifficulty")) {
+                    await send(`r:getDifficulty:${getDifficulty(blocks.length)}`, senderId)
+                }
+                else if (message.startsWith("r:getBlockCount:") && forkCase) {
+                    try {
+                        if (Number(message.slice(16)) > blocks.length) {await send(`getBlocks`, senderId)}
+                        else {forkCase = false}
+                    }
+                    catch (error) {forkCase = false}
+                }
+                else if (message.startsWith("r:getBlocks:") && forkCase) {
+                    let original = blocks
+                    let b = split_(message.slice(12))
+                    if (b.length < original.length) {
+                        forkCase = false
+                        continue
+                    }
+                    blocks = []
+                    for (let block of b) {
+                        let result = verifyBlock(block)
+                        if (!result) {
+                            blocks = original
+                            break
+                        }
+                        else {
+                            blocks.push(block)
+                        }
+                    }
+                    forkCase = false
+                }
+            }
+            catch (error) {}
+            finally {
+                if (rowId !== null || rowId !== undefined){
+                    await deleteMsg(rowId)
+                }
+            }
+            await sleep(0)
+        }
+    }
+    async function logIn() {
+        const seed = document.getElementById("walletSeedInput").value
+        seedToAddress(seed)
+        document.getElementById("logInPanel").style.display='none'
+        document.getElementById("mainPanel").style.display = 'flex'
+        // await start()
+    }
+</script>
+</body>
+</html>
