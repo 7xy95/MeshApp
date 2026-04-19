@@ -7,23 +7,25 @@
         body {
             margin: 0;
             height: 100vh;
-            background-color: #252f39;
+            background-color: #162633;
+            font-variant-numeric: tabular-nums;
             color: #dfe6ed;
         }
         input {
             background-color: #999ca8;
-            font-family: Monaco;
+            font-family: system-ui;
             border-radius: 0;
             border: none;
         }
         .page {
             width: 100vw;
             height: 100vh;
-            font-family: Monaco;
+            font-family: system-ui;
             display: flex;
+            min-height: 0;
         }
         .logInPanel {
-            font-family: Monaco;
+            font-family: system-ui;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -36,13 +38,18 @@
             height: 100vh;
             display: flex;
             flex-direction: column;
-            font-family: Monaco;
+            font-family: system-ui;
         }
         .panel {
-            background-color: #1c2229;
+            background-color: #151e29;
             border-radius: 3px;
             font-size: 16px;
             position: relative;
+            padding: 15px;
+            margin: 4px 0;
+        }
+        .panel p {
+            margin: 8px 0;
         }
         .mainText {
             font-size: 24px;
@@ -61,37 +68,124 @@
         .right .panel {
             flex: 1;
             margin: 12px;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
         }
         .right {
             flex: 1;
             height: 100%;
             display: flex;
+            min-height: 0;
         }
         .btn {
             margin-top: 30px;
-            background-color: #e9ecef;
-            color: #0c24bc;
+            background-color: #151e29;
+            color: #d6d7e1;
             border: none;
-            padding: 12px 24px;
+            padding: 8px 18px;
             border-radius: 2px;
-            font-size: 16px;
+            font-size: 14px;
             cursor: pointer;
             transition: 0.2s;
         }
         .btn:hover {
-            background-color: #3387f4;
+            background-color: #0b1117;
             transform: scale(1.025);
         }
         .topBar {
             padding: 12px 16px 0 16px;
             box-sizing: border-box;
         }
+        .label {
+            text-align: left;
+        }
+        .value {
+            text-align: left;
+        }
+        .info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            align-items: center;
+        }
+        hr {
+            height: 1px;
+            border: none;
+            background-color: rgb(54 60 78 / 0.72);
+        }
+        .input {
+            border: 3px solid #151c23;
+            background-color: #151e29;
+            color: #c6d0dc;
+        }
+        input:focus {
+            outline: none;
+            border: 3px solid #0b1117;
+        }
+        .miningHeader {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .popup {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgb(0 0 0 / 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .popupBox {
+            width: 400px;
+            height: 300px;
+            background-color: #162633;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+            position: relative;
+        }
+        .history {
+            overflow-y: auto;
+            flex: 1;
+            min-height: 0;
+        }
+        .historyItem {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            grid-template-rows: auto auto;
+            column-gap: 4px;
+            row-gap: 4px;
+            align-items: center;
+            margin: 0 0 20px;
+        }
+        .historyItem p {
+            margin: 0;
+        }
+        .iconH {
+            grid-column: 1;
+            grid-row: 1 / 3;
+        }
+        .timeH {
+            grid-column: 2;
+            grid-row: 1;
+        }
+        .changeH {
+            grid-column: 3;
+            grid-row: 1;
+            text-align: right;
+        }
+        .infoH {
+            grid-column: 2 / 4;
+            grid-row: 2;
+            word-break: break-all;
+        }
     </style>
 </head>
 <body>
 <div id="logInPanel" class="logInPanel">
-    <p class="enterSeed" id="enterSeedText">Enter wallet seed:</p>
-    <input type="password" id="walletSeedInput">
+    <p id="enterSeedText">Enter wallet seed:</p>
+    <input class="input" type="password" id="walletSeedInput">
     <button class="btn" type="submit" onclick="logIn()">Log In</button>
 </div>
 <div id="mainPanel" class="mainPanel" style="display: none">
@@ -103,26 +197,86 @@
     <div class="page">
         <div class="left">
             <div class="panel">
-                <p id="vBalance" class="mainText"></p>
-                <p id="unVBalance" class="mainText"></p>
-                <p id="address" class="mainText"></p>
+                <p>Balance</p>
+                <hr>
+                <p class="info">
+                    <span class="label">Verified Balance:</span>
+                    <span class="value" id="vBalance">0.000</span>
+                </p>
+                <p class="info">
+                    <span class="label">Unverified Balance:</span>
+                    <span class="value" id="unVBalance">0.000</span>
+                </p>
+                <div class="miningHeader">
+                    <button class="btn" onclick="openTxPopup()" style="margin-top: 0; background-color: #2b3853">Send MESH</button>
+                    <button class="btn" onclick="openMsgPopup()" style="margin-top: 0; background-color: #2b3853">Send Msg (1 MESH)</button>
+                </div>
             </div>
             <div class="panel">
-                <p id="version"></p>
-                <p id="difficulty"></p>
-                <p id="blockCount"></p>
-                <p id="blockReward"></p>
+                <p>Chain Info</p>
+                <hr>
+                <p class="info">
+                    <span class="label">Version:</span>
+                    <span class="value" id="version">-1.-1.-1</span>
+                </p>
+                <p class="info">
+                    <span class="label">Difficulty:</span>
+                    <span class="value" id="difficulty">-1</span>
+                </p>
+                <p class="info">
+                    <span class="label">Block Count:</span>
+                    <span class="value" id="blockCount">-1</span>
+                </p>
+                <p class="info">
+                    <span class="label">Block Reward</span>
+                    <span class="value" id="blockReward">-1</span>
+                </p>
             </div>
             <div class="panel" style="margin-bottom: 12px">
-                <p id="mining"></p>
+                <div class="miningHeader">
+                    <p style="margin: 0">Mining</p>
+                    <button class="btn" onclick="mine = !mine" style="margin-top: 0; background-color: #2b3853">Toggle Mining</button>
+                </div>
+                <hr>
+                <p class="info">
+                    <span class="label" id="miningToggledL"></span>
+                    <span class="value" id="miningToggled"></span>
+                </p>
+                <p class="info">
+                    <span class="label">Hash Attempts:</span>
+                    <span class="value" id="totalHashes"></span>
+                </p>
+                <p class="info">
+                    <span class="label">Hashes Found:</span>
+                    <span class="value" id="hashesFound"></span>
+                </p>
+                <p class="info">
+                    <span class="label"></span>
+                    <span class="value" id="hashesPerSecond"></span>
+                </p>
+                <p class="info">
+                    <span class="label"></span>
+                    <span class="value" id="estTimePerHash"></span>
+                </p>
             </div>
         </div>
 
         <div class="right">
             <div class="panel">
-
+                <p>History</p>
+                <hr>
+                <div class="history" id="history"></div>
             </div>
         </div>
+    </div>
+</div>
+<div class="popup" style="display: none" id="tx">
+    <div class="popupBox">
+        <button class="btn" onclick="closePopup()" style="font-size: 32px; margin-top: 0; background-color: #2b3853; position: absolute; top: 10px; right: 10px">×</button>
+<!--        <p id="popupTitle"></p>-->
+        <input class="input" id="addressInput" placeholder="Enter Receiver's Address..." style="margin-top: 100px; width: 300px">
+        <input class="input" id="dataInput" style="width: 300px">
+        <button class="btn" onclick="submitTx()" style="margin-top: 0; background-color: #2b3853">Send</button>
     </div>
 </div>
 <script>
@@ -144,7 +298,7 @@
         return crypto.createHash("ripemd160").update(sha256(data)).digest()
     }
     function seedToAddress(seedText) {
-        privateKey = sha256(Buffer.from(seedText, "utf-8"))
+        privateKey = sha256(sha256(Buffer.from(String(seedText), "utf-8")))
         publicKey = Buffer.from(secp256k1.getPublicKey(privateKey, true))
         address = hash160(publicKey).toString("hex")
     }
@@ -152,22 +306,34 @@
         text = text.trim()
         let result = []
         let current = ""
-        let inString = false
-        for (let i = 1; i < text.length - 1; i++) {
-            let ch = text[i]
-            if (ch === "'") {
-                inString = !inString
+        let nestedList = 0
+        const startIndex = text.indexOf("[")
+        text = text.slice(startIndex+1).replaceAll(" ", "").replaceAll("'", "").replaceAll('"', "")
+        for (let c=0; c<text.length; c++) {
+            let currentChar = text[c]
+            let nextChar = text[c+1]
+            if (currentChar === "," && nextChar === "[") {
+                nestedList++
+                current += currentChar
                 continue
             }
-            if (ch === "," && !inString) {
-                result.push(current)
+            if (currentChar === "," && nestedList === 0) {
+                result.push(current.trim())
                 current = ""
                 continue
             }
-            current += ch
+            if (currentChar === "]" && nestedList === 0) {
+                result.push(current.trim())
+                continue
+            }
+            if (currentChar === "]") {
+                current += currentChar
+                nestedList--
+                continue
+            }
+            current += currentChar
         }
-        if (current) result.push(current);
-        return result;
+        return result.filter(x => x !== "")
     }
     function getNextNonce(address) {
         let nonce = 0
@@ -303,13 +469,15 @@
         }
         let balance = vBalance
         for (let tx of mempool) {
-            let from = ""; let to = ""; let amount = 0
             tx = tx.split("||")[0]
-            if (tx.startsWith("MSG|")) {[, from, to, amount, ,] = tx.split("|")}
-            else {[from, to, amount,] = tx.split("|")}
-            amount = Number(amount)
-            if (from === address) {balance -= amount}
-            if (to === address) {balance += amount - getFee(amount)}
+            if (tx.startsWith("MSG|")) {
+                let [, from, , amount, ,] = tx.split("|")
+                if (from === address) {balance -= Number(amount)}
+                continue
+            }
+            let [from, to, amount,] = tx.split("|")
+            if (from === address) {balance -= Number(amount)}
+            if (to === address) {balance += Number(amount) - getFee(Number(amount))}
         }
         return [vBalance, balance]
     }
@@ -328,7 +496,13 @@
         return Math.round(diff*100)/100
     }
     function getDifficulty(blockIndex) {
-        return BigInt(2**getDifficultyBits(blockIndex))
+        const bits = getDifficultyBits(blockIndex)
+        const int = Math.floor(bits)
+        const frac = bits - int
+        const precision = 52
+        const scaled = BigInt(Math.floor(Math.pow(2, frac) * Math.pow(2, precision)))
+
+        return scaled << BigInt(int - precision);
     }
     function getTs(block) {
         let header = block.split(",")[0]
@@ -369,6 +543,10 @@
     }
 
     let forkCase = false
+    let mine = false
+    let totalHashes = 0
+    let totalHashesFound = 0
+    let lastSeen = Date.now()
     let id = 0
     let mempool = []
     let blocks = []
@@ -408,6 +586,7 @@
     }
     async function start() {
         let ids = await getIds()
+        ids = ids.slice(ids.length-3, ids.length)
         if (ids.length === 0) {return}
         id = await newId()
         let idMaxCount = 0
@@ -416,7 +595,7 @@
             let idVal = ids[i]
             await send("getBlockCount", idVal)
             while (true) {
-                let [message, senderId, rowId] = await read()
+                let [message, senderId, rowId] = await read(3)
                 if (message.startsWith("noResponse")) {break}
                 if (!message.startsWith("r:getBlockCount:") || senderId !== idVal) {
                     await deleteMsg(rowId)
@@ -432,6 +611,7 @@
         }
         //todo length should also be verified from returned blocks
         await send("getBlocks", idMaxCount)
+        let correct = true
         while (true) {
             let [message, senderId, rowId] = await read()
             if (!message.startsWith("r:getBlocks:") || senderId !== idMaxCount) {
@@ -439,10 +619,16 @@
                 continue
             }
             let blocks_ = split_(message.slice(12))
-            for (let i=0; i<blocks_.length; i++) {
-                let block = blocks_[i]
+            let i = -1
+            for (let block of blocks_) {
+                i++
+                if (i === 0) {blocks.push(block); continue}
+                if (!verifyBlock(block)) {correct = false; await deleteMsg(rowId); break}//todo if invalid request another node
+                else {
+                    blocks.push(block)
+                }
             }
-            //todo verify received blocks and add to blocks
+            if (correct) {await deleteMsg(rowId);break}
         }
 
         await send("getMempool", idMaxCount)
@@ -452,9 +638,11 @@
                 await deleteMsg(rowId)
                 continue
             }
-            let mempool_ = message.slice(15)
+            let mempool_ = message.slice(13)
+            console.log(mempool_)
             if (mempool_ !== ""){
                 mempool_ = split_(mempool_)
+                console.log(mempool_)
                 for (let tx=0; tx<mempool_.length; tx++) {
                     if (mempool_[tx].startsWith("MSG")) {
                         if (verifyMsg(mempool_[tx])) {mempool.push(mempool_[tx])}
@@ -465,13 +653,10 @@
                 break
             }
         }
-        refresh()
-        check()
-
-    }
-    function setBalance(addr) {
-        let v = document.getElementById("vBalance")
-        let unV = document.getElementById("unVBalance")
+        lastSeen = Date.now()
+        void refresh()
+        void check()
+        void mineLoop()
     }
     function checkDuplicateTx(address, nonce) {
         try {
@@ -492,11 +677,12 @@
         }
         catch (error) {return true}
     }
-    function verifyTx(tx, checkMempool=true) {
+    function verifyTx(tx_, checkMempool=true) {
         try {
-            let [tx, pubKey, sig] = tx.split("||")
-            pubKey = Buffer.from(pubKey, "hex")
-            sig = Buffer.from(sig, "hex")
+            let [tx, pubKey, sig] = tx_.split("||")
+            pubKey = String(pubKey); sig = String(sig); tx = String(tx)
+            pubKey = new Uint8Array(Buffer.from(pubKey, "hex"))
+            sig = new Uint8Array(Buffer.from(sig, "hex"))
             let parts = tx.split("|")
             if (parts.length !== 4) {return false}
             let [from, to, amount, nonce] = parts
@@ -504,18 +690,20 @@
             if (amount < 1) {return false}
             if (checkMempool && nonce < getNextNonce(from)) {return false}
             let txHash = sha256(Buffer.from(tx, "utf-8"))
-            if (!secp256k1.verify(sig, txHash, pubKey)) {return false}
+            if (!secp256k1.verify(sig, txHash, pubKey, {prehash: false, format: "der"})) {return false}
             if (from !== hash160(pubKey).toString("hex")) {return false}
-            if (checkMempool && amount > getSpendableBalance(from, tx)) {return false}
+            if (checkMempool && amount > getSpendableBalance(from, tx_)) {return false}
             return true
         }
         catch (error) {
+            console.log(error)
             return false
         }
     }
     function verifyMsg(msg, checkMempool=true) {
         try {
             let [tx, pubKey, sig] = msg.split("||")
+            pubKey = String(pubKey); sig = String(sig); tx = String(tx)
             pubKey = Buffer.from(pubKey, "hex")
             sig = Buffer.from(sig, "hex")
             let parts = tx.split("|")
@@ -527,12 +715,13 @@
             if (amount !== 1000) {return false}
             let txHash = sha256(Buffer.from(tx, "utf-8"))
             if (checkMempool && nonce < getNextNonce(from)) {return false}
-            if (!secp256k1.verify(sig, txHash, pubKey)) {return false}
+            if (!secp256k1.verify(sig, txHash, pubKey, { prehash: false, format: "der" })) {return false}
             if (from !== hash160(pubKey).toString("hex")) {return false}
             if (checkMempool && amount > getSpendableBalance(from, tx)) {return false}
             return true
         }
         catch (error) {
+            console.log(error)
             return false
         }
     }
@@ -598,34 +787,105 @@
                 let lastHeader = blocks[blocks.length-1].slice(0, index)
                 let [lHash, lRoot, lTs, lNonce] = lastHeader.split("|")
                 if (Number(lTs) > ts) {return false}
-                let expected = BigInt("0x" + sha256(sha256(Buffer.from(`${lHash}|${lRoot}|${Number(lTs)}|${Number(lNonce)}`, "utf-8"))).toString("hex")).toString(16);
+                let expected = BigInt("0x" + sha256(sha256(Buffer.from(`${lHash}|${lRoot}|${Number(lTs)}|${Number(lNonce)}`, "utf-8"))).toString("hex")).toString(16)
                 if (priorHash !== expected) {return false}
             }
             if (result > BigInt(getDifficulty(blockIndex))) {return false}
             return true
         }
         catch (error) {
+            console.log(error)
             return false
         }
     }
 
+    //todo during refreshing also display history
     async function refresh() {
         while (true) {
-            //todo refresh and display data
-            await sleep(200)
+            let [v_, unV_] = getBalance(address)
+            document.getElementById("vBalance").innerText = `${(v_/1000).toFixed(3)} MESH`
+            document.getElementById("unVBalance").innerText = `${(unV_/1000).toFixed(3)} MESH`
+            document.getElementById("vBalanceTop").innerText = `Balance: ${(v_/1000).toFixed(3)} MESH`
+            document.getElementById("addressTop").innerText = `Address: ${address}`
+
+            document.getElementById("version").innerText = "1.0.0"
+            document.getElementById("difficulty").innerText = `${getDifficultyBits(blocks.length).toFixed(2)}`
+            document.getElementById("blockCount").innerText =  `${blocks.length}`
+            document.getElementById("blockReward").innerText = `${((getBlockReward(blocks.length)+getMinerRewards(mempool))/1000).toFixed(3)} MESH`
+
+            let miningToggled = document.getElementById("miningToggledL")
+            let totalHashes_ = document.getElementById("totalHashes")
+            let hashesFound = document.getElementById("hashesFound")
+            // let hashesPerSecond = document.getElementById("hashesPerSecond").innerText //todo
+            // let estTimePerHash = document.getElementById("estTimePerHash").innerText //todo
+
+            if (!mine) {miningToggled.innerText = "Mining Disabled"}
+            else {miningToggled.innerText = "Mining Enabled"}
+
+            totalHashes_.innerText = `${totalHashes.toLocaleString()}`
+            hashesFound.innerText = `${totalHashesFound}`
+
+            document.getElementById("history").innerHTML = ""
+            setHistory()
+            await sleep(500)
+        }
+    }
+    async function mineLoop() {
+        async function broadcastBlock(block) {
+            let ids = await getIds()
+            for (let i of ids) {
+                if (id !== i) {await send(`verifyBlock:${block}`, i)}
+            }
+        }
+        while (true) {
+            if (!mine) {await sleep(50); continue}
+            let txs = [...mempool]
+            txs.unshift(`SYSTEM|${address}|${getBlockReward(blocks.length)}|0`)
+
+            let nonce = Math.floor(Math.random()*(2**31))
+            let counter = 0
+
+            let index = blocks[blocks.length-1].indexOf(",")
+            let lastHeader = blocks[blocks.length-1].slice(0, index)
+            let [lHash, lRoot, lTs, lNonce] = lastHeader.split("|")
+            const priorHash = BigInt("0x" + sha256(sha256(Buffer.from(`${lHash}|${lRoot}|${Number(lTs)}|${Number(lNonce)}`, "utf-8"))).toString("hex")).toString(16)
+            const merkleRoot = sha256(Buffer.from(txs.join(""), "utf-8")).toString("hex")
+            const ts = Math.floor(Date.now()/1000)
+            const difficulty = getDifficulty(blocks.length)
+            const prefix = `${priorHash}|${merkleRoot}|${ts}|`
+            while (counter < 25000) {
+                counter++
+                const header = prefix + String(nonce+counter)
+                const result = BigInt("0x" + sha256(sha256(Buffer.from(header, "utf-8"))).toString("hex"))
+                if (result < difficulty) {
+                    const block = `${header},${JSON.stringify(txs)}`
+                    if (verifyBlock(block)) {
+                        mempool = []
+                        blocks.push(block)
+                        await broadcastBlock(block)
+                        totalHashesFound += 1
+                        break
+                    }
+                }
+            }
+            totalHashes += counter
+            await sleep(0)
         }
     }
     async function check() {
         while (true) {//todo getRecentTxs
             let message = ""; let senderId = 0; let rowId = null
             try {
+                if (Date.now() - lastSeen > 20000) {process.exit(1)}
                 [message, senderId, rowId] = await read(0.25)
+                if (Date.now() - lastSeen > 20000) {process.exit(1)}
+                lastSeen = Date.now()
                 if (message.startsWith("verifyTx:")) {
                     message = message.slice(9)
                     let result = ""
                     if (message.startsWith("MSG|")) {result = verifyMsg(message)}
                     else {result = verifyTx(message)}
-                    if (result && !message.includes(mempool)) {mempool.push(message)}
+                    if (result && !mempool.includes(message)) {mempool.push(message)}
                 }
                 else if (message.startsWith("verifyBlock:")) {
                     message = message.slice(12)
@@ -635,7 +895,7 @@
                         mempool = []
                     }
                     else {
-                        send("getBlockCount", senderId)
+                        await send("getBlockCount", senderId)
                         forkCase = true
                     }
                 }
@@ -656,7 +916,7 @@
                 else if (message.startsWith("getBalance:")) {
                     let addr = message.slice(11)
                     let [v, unV] = getBalance(addr)
-                    await send(`r:getBalance:${v},${unV}`)
+                    await send(`r:getBalance:${v},${unV}`, senderId)
                 }
                 else if (message.startsWith("getLastBlocks:")) {
                     let amount = Number(message.slice(14))
@@ -681,7 +941,10 @@
                         continue
                     }
                     blocks = []
+                    let i = -1
                     for (let block of b) {
+                        i++
+                        if (i === 0) {blocks.push(block); continue}
                         let result = verifyBlock(block)
                         if (!result) {
                             blocks = original
@@ -696,7 +959,8 @@
             }
             catch (error) {}
             finally {
-                if (rowId !== null || rowId !== undefined){
+                if (Date.now() - lastSeen > 20000) {process.exit(1)}
+                if (rowId !== null && rowId !== undefined){
                     await deleteMsg(rowId)
                 }
             }
@@ -708,7 +972,160 @@
         seedToAddress(seed)
         document.getElementById("logInPanel").style.display='none'
         document.getElementById("mainPanel").style.display = 'flex'
-        // await start()
+        await start()
+    }
+
+    let popup = -1
+    function openTxPopup() {
+        document.getElementById("tx").style.display = "flex"
+        document.getElementById("dataInput").placeholder = "Enter Amount..."
+        popup = 0
+    }
+    function openMsgPopup() {
+        document.getElementById("tx").style.display = "flex"
+        document.getElementById("dataInput").placeholder = "Enter Message..."
+        popup = 1
+    }
+    async function submitTx() {
+        async function broadcastTx(tx) {
+            let ids = await getIds()
+            for (let i of ids) {
+                await send(`verifyTx:${tx}`, i)
+            }
+        }
+        let toAddress = document.getElementById("addressInput").value
+        let bal = getSpendableBalance(address)
+        if (popup === 0) {
+            closePopup()
+            let amount = document.getElementById("dataInput").value
+            amount = Math.round(Number(amount)*1000)
+            if (bal < amount) {return}
+            let tx = `${address}|${toAddress}|${amount}|${getNextNonce(address)}`
+            let txHash = sha256(Buffer.from(tx, "utf-8"))
+            let signature = secp256k1.sign(txHash, privateKey, { prehash: false, format: "der" })
+            tx = `${tx}||${Buffer.from(publicKey).toString("hex")}||${Buffer.from(signature).toString("hex")}`
+            await broadcastTx(tx)
+            mempool.push(tx)
+        }
+        else if (popup === 1) {
+            closePopup()
+            if (bal < 1000) {return}
+            let message = document.getElementById("dataInput").value
+            message = Buffer.from(message, "utf-8").toString("hex")
+            let tx = `MSG|${address}|${toAddress}|1000|${getNextNonce(address)}|${message}`
+            let txHash = sha256(Buffer.from(tx, "utf-8"))
+            let signature = secp256k1.sign(txHash, privateKey, { prehash: false, format: "der" })
+            tx = `${tx}||${Buffer.from(publicKey).toString("hex")}||${Buffer.from(signature).toString("hex")}`
+            await broadcastTx(tx)
+            mempool.push(tx)
+        }
+    }
+    function closePopup() {
+        document.getElementById("tx").style.display = "none"
+        popup = -1
+    }
+    function setHistory() {
+        for (let tx of mempool) {
+            tx = tx.split("||")[0]
+            if (tx.startsWith("MSG|")) {
+                let [, from, to, , , messageHex] = tx.split("|")
+                let bytes = Uint8Array.from(Buffer.from(messageHex, "hex"))
+                let messageText = new TextDecoder("utf-8").decode(bytes)
+                if (from === address) {addHistoryElement("msg", 0, -1, to)}
+                if (to === address) {addHistoryElement("msg", 0, 0, from, messageText)}
+                continue
+            }
+            let [from, to, amount,] = tx.split("|")
+            if (from === address) {addHistoryElement("tx", 0, -1*Number(amount)/1000, to)}
+            if (to === address) {addHistoryElement("tx", 0, Number(amount)/1000, from)}
+        }
+        let i = -1; let b = blocks.length+1
+        for (let block of [...blocks].reverse()) {
+            i++; b--
+            let index = block.indexOf(",")
+            let txs = split_(block.slice(index+1))
+            for (let tx of txs) {
+                if (tx.startsWith("SYSTEM|")) {
+                    if (i !== 0) {
+                        let parts = tx.split("|")
+                        if (parts[1] === address) {addHistoryElement("mined", i, (getBlockReward(b)+getMinerRewards(txs))/1000)}
+                    }
+                    continue
+                }
+                tx = tx.split("||")[0]
+                if (tx.startsWith("MSG|")) {
+                    let [, from, to, , , messageHex] = tx.split("|")
+                    let bytes = Uint8Array.from(Buffer.from(messageHex, "hex"))
+                    let messageText = new TextDecoder("utf-8").decode(bytes)
+                    if (from === address) {addHistoryElement("msg", i, -1, to)}
+                    if (to === address) {addHistoryElement("msg", i, 0, from, messageText)}
+                    continue
+                }
+                let [from, to, amount,] = tx.split("|")
+                if (from === address) {addHistoryElement("tx", i, -1*Number(amount)/1000, to)}
+                if (to === address) {addHistoryElement("tx", i, Number(amount)/1000, from)}
+            }
+        }
+    }
+    function addHistoryElement(type, blocksAgo, change, addr="", msg="") {
+        let hist = document.getElementById("history")
+        let time = ""
+        if (blocksAgo > 0) {time = `<p class="timeH">${blocksAgo} Blocks ago</p>`}
+        else {time = `<p class="timeH" style="color: #c537de">Unverified</p>`}
+        if (type === "tx") {
+            if (change >= 0) {
+                hist.innerHTML += `
+                <div class="historyItem">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1dcd20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-banknote-arrow-up-icon lucide-banknote-arrow-up iconH"><path d="M12 18H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5"/><path d="M18 12h.01"/><path d="M19 22v-6"/><path d="m22 19-3-3-3 3"/><path d="M6 12h.01"/><circle cx="12" cy="12" r="2"/></svg>
+                    ${time}
+                    <p class="changeH" style="color: #1dcd20">+${change.toFixed(3)}</p>
+                    <p class="infoH">Received from ${addr}</p>
+                </div>
+                `
+            }
+            else {
+                hist.innerHTML += `
+                <div class="historyItem">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ff4242" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-banknote-arrow-down-icon lucide-banknote-arrow-down iconH"><path d="M12 18H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5"/><path d="m16 19 3 3 3-3"/><path d="M18 12h.01"/><path d="M19 16v6"/><path d="M6 12h.01"/><circle cx="12" cy="12" r="2"/></svg>
+                    ${time}
+                    <p class="changeH" style="color: #ff4242">${change.toFixed(3)}</p>
+                    <p class="infoH">Sent to ${addr}</p>
+                </div>
+                `
+            }
+        }
+        else if (type === "msg") {
+            if (change === 0) {
+                hist.innerHTML += `
+                <div class="historyItem">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6196ea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-message-square-text-icon lucide-message-square-text iconH"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"/><path d="M7 11h10"/><path d="M7 15h6"/><path d="M7 7h8"/></svg>
+                    ${time}
+                    <p class="changeH">Message received</p>
+                    <p class="infoH">From ${addr}: ${msg}</p>
+                </div>
+                `
+            }
+            else {
+                hist.innerHTML += `
+                <div class="historyItem">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6196ea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-message-square-text-icon lucide-message-square-text iconH"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"/><path d="M7 11h10"/><path d="M7 15h6"/><path d="M7 7h8"/></svg>
+                    ${time}
+                    <p class="changeH" style="color: #ff4242">-1.000</p>
+                    <p class="infoH">Message sent to ${addr}</p>
+                </div>
+                `
+            }
+        }
+        else {
+            hist.innerHTML += `
+            <div class="historyItem">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6196ea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pickaxe-icon lucide-pickaxe iconH"><path d="m14 13-8.381 8.38a1 1 0 0 1-3.001-3L11 9.999"/><path d="M15.973 4.027A13 13 0 0 0 5.902 2.373c-1.398.342-1.092 2.158.277 2.601a19.9 19.9 0 0 1 5.822 3.024"/><path d="M16.001 11.999a19.9 19.9 0 0 1 3.024 5.824c.444 1.369 2.26 1.676 2.603.278A13 13 0 0 0 20 8.069"/><path d="M18.352 3.352a1.205 1.205 0 0 0-1.704 0l-5.296 5.296a1.205 1.205 0 0 0 0 1.704l2.296 2.296a1.205 1.205 0 0 0 1.704 0l5.296-5.296a1.205 1.205 0 0 0 0-1.704z"/></svg>
+                ${time}
+                <p class="changeH" style="color: #1dcd20">+${change.toFixed(3)}</p>
+                <p class="infoH">Block mined</p>
+            </div>
+            `
+        }
     }
 </script>
 </body>

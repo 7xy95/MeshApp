@@ -1,4 +1,5 @@
 const { app, BrowserWindow } = require("electron");
+app.commandLine.appendSwitch('remote-debugging-port', '9222');
 
 function createWindow() {
     const win = new BrowserWindow({
@@ -8,8 +9,8 @@ function createWindow() {
             nodeIntegration: true,
             contextIsolation: false
         }
-    });
 
+    });
     win.loadFile("index.html");
 }
 
