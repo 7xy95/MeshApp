@@ -562,6 +562,11 @@
             })
         })
     }
+    async function getLatestVersion() {
+        let response = await fetch("https://api.github.com/repos/7xy95/MeshApp/releases/latest")
+        response = await response.json()
+        return response.tag_name
+    }
     async function deleteMsg(rowId) {
         await fetch(url + "deleteMessageRow", {
             method: "POST",
@@ -799,7 +804,6 @@
         }
     }
 
-    //todo during refreshing also display history
     async function refresh() {
         while (true) {
             let [v_, unV_] = getBalance(address)
@@ -808,7 +812,10 @@
             document.getElementById("vBalanceTop").innerText = `Balance: ${(v_/1000).toFixed(3)} MESH`
             document.getElementById("addressTop").innerText = `Address: ${address}`
 
-            document.getElementById("version").innerText = "1.0.0"
+            let latestVersion = await getLatestVersion()
+            if (latestVersion !== "v1.0.1") {document.getElementById("version").innerHTML = `<a href="https://github.com/7xy95/MeshApp/releases" style="color: dodgerblue">v1.0.1, ${latestVersion} available!</a>`}
+            else {document.getElementById("version").innerText = "v1.0.1"}
+
             document.getElementById("difficulty").innerText = `${getDifficultyBits(blocks.length).toFixed(2)}`
             document.getElementById("blockCount").innerText =  `${blocks.length}`
             document.getElementById("blockReward").innerText = `${((getBlockReward(blocks.length)+getMinerRewards(mempool))/1000).toFixed(3)} MESH`
@@ -1005,7 +1012,6 @@
             let signature = secp256k1.sign(txHash, privateKey, { prehash: false, format: "der" })
             tx = `${tx}||${Buffer.from(publicKey).toString("hex")}||${Buffer.from(signature).toString("hex")}`
             await broadcastTx(tx)
-            mempool.push(tx)
         }
         else if (popup === 1) {
             closePopup()
@@ -1017,7 +1023,6 @@
             let signature = secp256k1.sign(txHash, privateKey, { prehash: false, format: "der" })
             tx = `${tx}||${Buffer.from(publicKey).toString("hex")}||${Buffer.from(signature).toString("hex")}`
             await broadcastTx(tx)
-            mempool.push(tx)
         }
     }
     function closePopup() {
@@ -1037,7 +1042,7 @@
             }
             let [from, to, amount,] = tx.split("|")
             if (from === address) {addHistoryElement("tx", 0, -1*Number(amount)/1000, to)}
-            if (to === address) {addHistoryElement("tx", 0, Number(amount)/1000, from)}
+            if (to === address) {addHistoryElement("tx", 0, (Number(amount)-getFee(Number(amount)))/1000, from)}
         }
         let i = -1; let b = blocks.length+1
         for (let block of [...blocks].reverse()) {
@@ -1063,7 +1068,7 @@
                 }
                 let [from, to, amount,] = tx.split("|")
                 if (from === address) {addHistoryElement("tx", i, -1*Number(amount)/1000, to)}
-                if (to === address) {addHistoryElement("tx", i, Number(amount)/1000, from)}
+                if (to === address) {addHistoryElement("tx", i, (Number(amount)-getFee(Number(amount)))/1000, from)}
             }
         }
     }
@@ -1127,6 +1132,7 @@
             `
         }
     }
+    //todo check version https://api.github.com/repos/7xy95/MeshApp/releases/latest, and then check tag_name
 </script>
 </body>
 </html>
