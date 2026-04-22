@@ -157,7 +157,7 @@
             column-gap: 4px;
             row-gap: 4px;
             align-items: center;
-            margin: 0 0 20px;
+            margin: 0 0 30px;
         }
         .historyItem p {
             margin: 0;
@@ -190,8 +190,8 @@
 </div>
 <div id="mainPanel" class="mainPanel" style="display: none">
     <div class="topBar">
-        <p id="vBalanceTop" style="font-size: 24px; margin-top: -5px">Balance: 0.000 MESH</p>
-        <p id="addressTop" style="font-size: 12px; margin-top: -20px">Address: 0000000000000000000000000000000000000000</p>
+        <p id="vBalanceTop" style="font-size: 24px; margin-top: -5px">Syncing...</p>
+        <p id="addressTop" style="font-size: 12px; margin-top: -20px">This may take up to 20s...</p>
         <hr>
     </div>
     <div class="page">
@@ -544,6 +544,7 @@
 
     let forkCase = false
     let mine = false
+    let stop = false
     let totalHashes = 0
     let totalHashesFound = 0
     let lastSeen = Date.now()
@@ -568,28 +569,45 @@
         return response.tag_name
     }
     async function deleteMsg(rowId) {
-        await fetch(url + "deleteMessageRow", {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({rowId: rowId})
-        })
+        try {
+            await fetch(url + "deleteMessageRow", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({rowId: rowId})
+            })
+        }
+        catch (error) {}
     }
     async function read(timeout=5) {
-        let response = await fetch(url + `nextMessage?id=${id}&timeout=${timeout}`)
-        response = await response.json()
-        return [response.message, response.senderId, response.rowId]
+        const controller = new AbortController()
+        const ms = Math.max(100, Math.floor(timeout * 1000))
+        const timer = setTimeout(() => controller.abort(), ms)
+        try {
+            let response = await fetch(url + `nextMessage?id=${id}&timeout=${timeout}`)
+            response = await response.json()
+            return [response.message, response.senderId, response.rowId]
+        }
+        catch (error) {return ["noResponse", -1, null]}
+        finally {clearTimeout(timer)}
     }
     async function getIds() {
-        let response = await fetch(url + "allIds")
-        let data = await response.json()
-        return data.ids
+        while (true) {
+            try {
+                let response = await fetch(url + "allIds")
+                let data = await response.json()
+                return data.ids
+            }
+            catch (error) {await sleep(1500)}
+        }
     }
     async function newId() {
         let response = await fetch(url + "newId")
         let data = await response.json()
         return data.id
     }
-    async function start() {
+
+    async function startLoad() {
+        console.log("restarting...")
         let ids = await getIds()
         ids = ids.slice(ids.length-3, ids.length)
         if (ids.length === 0) {return}
@@ -606,6 +624,7 @@
                     await deleteMsg(rowId)
                     continue
                 }
+                console.log("got block count")
                 let blockCount = message.slice(16)
                 if (blockCount >= maxCount) {
                     maxCount = blockCount
@@ -623,6 +642,7 @@
                 await deleteMsg(rowId)
                 continue
             }
+            console.log("got blocks")
             let blocks_ = split_(message.slice(12))
             let i = -1
             for (let block of blocks_) {
@@ -633,7 +653,7 @@
                     blocks.push(block)
                 }
             }
-            if (correct) {await deleteMsg(rowId);break}
+            if (correct) {void deleteMsg(rowId);break}
         }
 
         await send("getMempool", idMaxCount)
@@ -644,7 +664,7 @@
                 continue
             }
             let mempool_ = message.slice(13)
-            console.log(mempool_)
+            console.log("got mempool")
             if (mempool_ !== ""){
                 mempool_ = split_(mempool_)
                 console.log(mempool_)
@@ -659,9 +679,13 @@
             }
         }
         lastSeen = Date.now()
+    }
+    async function start() {
+        await startLoad()
         void refresh()
         void check()
         void mineLoop()
+        void checkForDisconnect()
     }
     function checkDuplicateTx(address, nonce) {
         try {
@@ -722,7 +746,7 @@
             if (checkMempool && nonce < getNextNonce(from)) {return false}
             if (!secp256k1.verify(sig, txHash, pubKey, { prehash: false, format: "der" })) {return false}
             if (from !== hash160(pubKey).toString("hex")) {return false}
-            if (checkMempool && amount > getSpendableBalance(from, tx)) {return false}
+            if (checkMempool && amount > getSpendableBalance(from, msg)) {return false}
             return true
         }
         catch (error) {
@@ -806,35 +830,39 @@
 
     async function refresh() {
         while (true) {
-            let [v_, unV_] = getBalance(address)
-            document.getElementById("vBalance").innerText = `${(v_/1000).toFixed(3)} MESH`
-            document.getElementById("unVBalance").innerText = `${(unV_/1000).toFixed(3)} MESH`
-            document.getElementById("vBalanceTop").innerText = `Balance: ${(v_/1000).toFixed(3)} MESH`
-            document.getElementById("addressTop").innerText = `Address: ${address}`
+            try {
+                if (stop) {await sleep(50); continue}
+                let [v_, unV_] = getBalance(address)
+                document.getElementById("vBalance").innerText = `${(v_/1000).toFixed(3)} MESH`
+                document.getElementById("unVBalance").innerText = `${(unV_/1000).toFixed(3)} MESH`
+                document.getElementById("vBalanceTop").innerText = `Balance: ${(v_/1000).toFixed(3)} MESH`
+                document.getElementById("addressTop").innerText = `Address: ${address}`
 
-            let latestVersion = await getLatestVersion()
-            if (latestVersion !== "v1.0.1") {document.getElementById("version").innerHTML = `<a href="https://github.com/7xy95/MeshApp/releases" style="color: dodgerblue">v1.0.1, ${latestVersion} available!</a>`}
-            else {document.getElementById("version").innerText = "v1.0.1"}
+                let latestVersion = await getLatestVersion()
+                if (latestVersion !== "v1.0.2") {document.getElementById("version").innerHTML = `<a href="https://github.com/7xy95/MeshApp/releases" style="color: dodgerblue">v1.0.2, ${latestVersion} available!</a>`}
+                else {document.getElementById("version").innerText = "v1.0.2"}
 
-            document.getElementById("difficulty").innerText = `${getDifficultyBits(blocks.length).toFixed(2)}`
-            document.getElementById("blockCount").innerText =  `${blocks.length}`
-            document.getElementById("blockReward").innerText = `${((getBlockReward(blocks.length)+getMinerRewards(mempool))/1000).toFixed(3)} MESH`
+                document.getElementById("difficulty").innerText = `${getDifficultyBits(blocks.length).toFixed(2)}`
+                document.getElementById("blockCount").innerText =  `${blocks.length}`
+                document.getElementById("blockReward").innerText = `${((getBlockReward(blocks.length)+getMinerRewards(mempool))/1000).toFixed(3)} MESH`
 
-            let miningToggled = document.getElementById("miningToggledL")
-            let totalHashes_ = document.getElementById("totalHashes")
-            let hashesFound = document.getElementById("hashesFound")
-            // let hashesPerSecond = document.getElementById("hashesPerSecond").innerText //todo
-            // let estTimePerHash = document.getElementById("estTimePerHash").innerText //todo
+                let miningToggled = document.getElementById("miningToggledL")
+                let totalHashes_ = document.getElementById("totalHashes")
+                let hashesFound = document.getElementById("hashesFound")
+                // let hashesPerSecond = document.getElementById("hashesPerSecond").innerText //todo
+                // let estTimePerHash = document.getElementById("estTimePerHash").innerText //todo
 
-            if (!mine) {miningToggled.innerText = "Mining Disabled"}
-            else {miningToggled.innerText = "Mining Enabled"}
+                if (!mine) {miningToggled.innerText = "Mining Disabled"}
+                else {miningToggled.innerText = "Mining Enabled"}
 
-            totalHashes_.innerText = `${totalHashes.toLocaleString()}`
-            hashesFound.innerText = `${totalHashesFound}`
+                totalHashes_.innerText = `${totalHashes.toLocaleString()}`
+                hashesFound.innerText = `${totalHashesFound}`
 
-            document.getElementById("history").innerHTML = ""
-            setHistory()
-            await sleep(500)
+                document.getElementById("history").innerHTML = ""
+                setHistory()
+                await sleep(1000)
+            }
+            catch (error) {}
         }
     }
     async function mineLoop() {
@@ -845,6 +873,7 @@
             }
         }
         while (true) {
+            if (stop) {await sleep(50); continue}
             if (!mine) {await sleep(50); continue}
             let txs = [...mempool]
             txs.unshift(`SYSTEM|${address}|${getBlockReward(blocks.length)}|0`)
@@ -855,16 +884,23 @@
             let index = blocks[blocks.length-1].indexOf(",")
             let lastHeader = blocks[blocks.length-1].slice(0, index)
             let [lHash, lRoot, lTs, lNonce] = lastHeader.split("|")
-            const priorHash = BigInt("0x" + sha256(sha256(Buffer.from(`${lHash}|${lRoot}|${Number(lTs)}|${Number(lNonce)}`, "utf-8"))).toString("hex")).toString(16)
+            const priorHash = sha256(sha256(Buffer.from(`${lHash}|${lRoot}|${Number(lTs)}|${Number(lNonce)}`, "utf-8"))).toString("hex")
+            const difficultyHex = getDifficulty(blocks.length).toString(16).padStart(64, "0")
+            const difficultyBytes = Buffer.from(difficultyHex, "hex")
             const merkleRoot = sha256(Buffer.from(txs.join(""), "utf-8")).toString("hex")
             const ts = Math.floor(Date.now()/1000)
-            const difficulty = getDifficulty(blocks.length)
             const prefix = `${priorHash}|${merkleRoot}|${ts}|`
             while (counter < 25000) {
                 counter++
                 const header = prefix + String(nonce+counter)
-                const result = BigInt("0x" + sha256(sha256(Buffer.from(header, "utf-8"))).toString("hex"))
-                if (result < difficulty) {
+                const result = sha256(sha256(Buffer.from(header, "utf-8")))
+
+                let passed = true
+                for (let i = 0; i < 32; i++) {
+                    if (result[i] < difficultyBytes[i]) {break}
+                    if (result[i] > difficultyBytes[i]) {passed = false; break}
+                }
+                if (passed) {
                     const block = `${header},${JSON.stringify(txs)}`
                     if (verifyBlock(block)) {
                         mempool = []
@@ -879,13 +915,30 @@
             await sleep(0)
         }
     }
+    async function checkForDisconnect() {
+        while (true) {
+            if (Date.now() - lastSeen > 10000) {
+                console.log(Date.now() - lastSeen)
+                stop = true
+                document.getElementById("vBalanceTop").innerText = "Syncing..."
+                document.getElementById("addressTop").innerText = "This may take up to 20s..."
+                await sleep(3000)
+                blocks = []//todo better to store so if 'no response' set to blocks
+                await startLoad()
+                lastSeen = Date.now()
+                stop = false
+                console.log("restarted...")
+            }
+            await sleep(20)
+        }
+    }
     async function check() {
         while (true) {//todo getRecentTxs
+            if (stop) {await sleep(50); continue}
             let message = ""; let senderId = 0; let rowId = null
             try {
-                if (Date.now() - lastSeen > 20000) {process.exit(1)}
                 [message, senderId, rowId] = await read(0.25)
-                if (Date.now() - lastSeen > 20000) {process.exit(1)}
+                console.log(Date.now() - lastSeen)
                 lastSeen = Date.now()
                 if (message.startsWith("verifyTx:")) {
                     message = message.slice(9)
@@ -966,7 +1019,6 @@
             }
             catch (error) {}
             finally {
-                if (Date.now() - lastSeen > 20000) {process.exit(1)}
                 if (rowId !== null && rowId !== undefined){
                     await deleteMsg(rowId)
                 }
@@ -1007,6 +1059,7 @@
             let amount = document.getElementById("dataInput").value
             amount = Math.round(Number(amount)*1000)
             if (bal < amount) {return}
+            if (amount <= 10) {return}
             let tx = `${address}|${toAddress}|${amount}|${getNextNonce(address)}`
             let txHash = sha256(Buffer.from(tx, "utf-8"))
             let signature = secp256k1.sign(txHash, privateKey, { prehash: false, format: "der" })
@@ -1036,13 +1089,13 @@
                 let [, from, to, , , messageHex] = tx.split("|")
                 let bytes = Uint8Array.from(Buffer.from(messageHex, "hex"))
                 let messageText = new TextDecoder("utf-8").decode(bytes)
-                if (from === address) {addHistoryElement("msg", 0, -1, to)}
-                if (to === address) {addHistoryElement("msg", 0, 0, from, messageText)}
+                if (from === address) {addHistoryElement("msg", -1, -1, to)}
+                if (to === address) {addHistoryElement("msg", -1, 0, from, messageText)}
                 continue
             }
             let [from, to, amount,] = tx.split("|")
-            if (from === address) {addHistoryElement("tx", 0, -1*Number(amount)/1000, to)}
-            if (to === address) {addHistoryElement("tx", 0, (Number(amount)-getFee(Number(amount)))/1000, from)}
+            if (from === address) {addHistoryElement("tx", -1, -1*Number(amount)/1000, to)}
+            if (to === address) {addHistoryElement("tx", -1, (Number(amount)-getFee(Number(amount)))/1000, from)}
         }
         let i = -1; let b = blocks.length+1
         for (let block of [...blocks].reverse()) {
@@ -1075,7 +1128,7 @@
     function addHistoryElement(type, blocksAgo, change, addr="", msg="") {
         let hist = document.getElementById("history")
         let time = ""
-        if (blocksAgo > 0) {time = `<p class="timeH">${blocksAgo} Blocks ago</p>`}
+        if (blocksAgo >= 0) {time = `<p class="timeH">${blocksAgo+1} Blocks ago</p>`}
         else {time = `<p class="timeH" style="color: #c537de">Unverified</p>`}
         if (type === "tx") {
             if (change >= 0) {
@@ -1132,7 +1185,6 @@
             `
         }
     }
-    //todo check version https://api.github.com/repos/7xy95/MeshApp/releases/latest, and then check tag_name
 </script>
 </body>
 </html>
