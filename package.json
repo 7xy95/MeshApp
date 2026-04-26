@@ -1,8 +1,12 @@
 {
   "name": "mesh",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "",
   "main": "main.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/7xy95/MeshApp.git"
+  },
   "scripts": {
     "start": "electron-forge start",
     "package": "electron-forge package",
@@ -22,6 +26,7 @@
   },
   "dependencies": {
     "@noble/curves": "^2.0.1",
-    "electron-squirrel-startup": "^1.0.1"
+    "electron-squirrel-startup": "^1.0.1",
+    "update-electron-app": "^3.1.2"
   }
 }

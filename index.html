@@ -13,19 +13,19 @@
         }
         input {
             background-color: #999ca8;
-            font-family: system-ui;
+            font-family: monospace;
             border-radius: 0;
             border: none;
         }
         .page {
             width: 100vw;
             height: 100vh;
-            font-family: system-ui;
+            font-family: monospace;
             display: flex;
             min-height: 0;
         }
         .logInPanel {
-            font-family: system-ui;
+            font-family: monospace;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -38,7 +38,7 @@
             height: 100vh;
             display: flex;
             flex-direction: column;
-            font-family: system-ui;
+            font-family: monospace;
         }
         .panel {
             background-color: #151e29;
@@ -50,9 +50,6 @@
         }
         .panel p {
             margin: 8px 0;
-        }
-        .mainText {
-            font-size: 24px;
         }
         .left {
             width: 350px;
@@ -128,6 +125,7 @@
             justify-content: space-between;
         }
         .popup {
+            font-family: monospace;
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
             background-color: rgb(0 0 0 / 0.5);
@@ -143,6 +141,32 @@
             flex-direction: column;
             gap: 10px;
             align-items: center;
+            position: relative;
+        }
+        .popupBoxLeft {
+            align-items: flex-start;
+            gap: 10px;
+            padding-left: 40px;
+        }
+        .contactItem {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            margin-bottom: 6px;
+        }
+        .smallBtn {
+            font-size: 14px;
+            padding: 6px 6px;
+            margin: 0 0 0 20px;
+            background-color: #162633;
+        }
+        .smallBtn:hover {
+            background-color: #162633;
+            transform: scale(1.4);
+        }
+        .contactList {
+            display: grid;
             position: relative;
         }
         .history {
@@ -191,7 +215,7 @@
 <div id="mainPanel" class="mainPanel" style="display: none">
     <div class="topBar">
         <p id="vBalanceTop" style="font-size: 24px; margin-top: -5px">Syncing...</p>
-        <p id="addressTop" style="font-size: 12px; margin-top: -20px">This may take up to 20s...</p>
+        <p id="addressTop" style="font-size: 16px; margin-top: -20px">This may take up to 20s...</p>
         <hr>
     </div>
     <div class="page">
@@ -252,18 +276,14 @@
                 </p>
                 <p class="info">
                     <span class="label"></span>
-                    <span class="value" id="hashesPerSecond"></span>
-                </p>
-                <p class="info">
-                    <span class="label"></span>
                     <span class="value" id="estTimePerHash"></span>
                 </p>
             </div>
         </div>
-
         <div class="right">
             <div class="panel">
                 <p>History</p>
+                <button class="btn" onclick="openContactPopup()" style="margin-top: 0; background-color: #2b3853">Manage Contacts</button>
                 <hr>
                 <div class="history" id="history"></div>
             </div>
@@ -279,10 +299,69 @@
         <button class="btn" onclick="submitTx()" style="margin-top: 0; background-color: #2b3853">Send</button>
     </div>
 </div>
+<div class="popup" style="display: none" id="contacts">
+    <div class="popupBox popupBoxLeft" style="width: 600px; height: 450px; margin-left: 40px; gap: 0">
+        <button class="btn" onclick="closeHistoryPopup()" style="font-size: 32px; margin-top: 0; background-color: #2b3853; position: absolute; top: 10px; right: 10px">×</button>
+        <input class="input" id="contactAddress" placeholder="Enter address to save as contact..." style="width: 330px; margin-top: 40px">
+        <input class="input" id="contactName" placeholder="Enter name..." style="width: 330px; margin-top: 20px">
+        <button class="btn" onclick="addContact()" style="margin-top: 10px; margin-bottom: 10px; background-color: #2b3853">Add Contact</button>
+        <div class="contactList" id="contactList"></div>
+    </div>
+</div>
 <script>
+    const APP_VERSION = "v1.0.2"
+    function initContacts() {
+        if (localStorage.getItem("contacts") === null) {localStorage.setItem("contacts", JSON.stringify([]))}
+        else {
+            let contacts = JSON.parse(localStorage.getItem("contacts"))
+            for (let contact of contacts) {
+                document.getElementById("contactList").innerHTML += `
+                    <div class="contactItem">
+                        <span>${contact[0]}: ${contact[1]}</span>
+                        <button class="btn smallBtn" onclick="removeContact('${contact[0]}')">×</button>
+                    </div>
+                `
+            }
+        }
+    }
+
     let privateKey = ""
     let publicKey = ""
     let address = ""
+
+    let difficultyCache = [230]
+    let balancesCache = {}
+    let nonceCache = new Set()
+    function cacheBlock(block) {
+        let index = block.indexOf(",")
+        let txs = split_(block.slice(index+1))
+        let i = -1
+        for (let tx of txs) {
+            i++
+            if (tx.startsWith("SYSTEM|")) {
+                let [, to, amount,] = tx.split("|")
+                amount = Number(amount)
+                if (i === 0) {balancesCache[to] = (balancesCache[to]||0) + amount + getMinerRewards(txs)}
+                else {balancesCache[to] = (balancesCache[to]||0) + amount}
+            }
+            else {
+                tx = tx.split("||")[0]
+                if (tx.startsWith("MSG|")) {
+                    let [, from, , amount, nonce] = tx.split("|")
+                    amount = Number(amount)
+                    balancesCache[from] = (balancesCache[from]||0) - amount
+                    nonceCache.add(`${from}|${nonce}`)
+                }
+                else {
+                    let [from, to, amount, nonce] = tx.split("|")
+                    amount = Number(amount)
+                    balancesCache[from] = (balancesCache[from]||0) - amount
+                    balancesCache[to] = (balancesCache[to]||0) + amount - getFee(amount)
+                    nonceCache.add(`${from}|${nonce}`)
+                }
+            }
+        }
+    }
 
     const crypto = require("crypto")
     const { secp256k1 } = require("@noble/curves/secp256k1.js")
@@ -303,6 +382,7 @@
         address = hash160(publicKey).toString("hex")
     }
     function split_(text) {
+        let start = Date.now()
         text = text.trim()
         let result = []
         let current = ""
@@ -406,38 +486,6 @@
         }
         return vBalance
     }
-    function getConfirmedBalances() {
-        let balances = {}
-        for (let block of blocks) {
-            let index = block.indexOf(",")
-            let txs = split_(block.slice(index+1))
-            let i = -1
-            for (let tx of txs) {
-                i++
-                if (tx.startsWith("SYSTEM|")) {
-                    let [, to, amount,] = tx.split("|")
-                    amount = Number(amount)
-                    if (i === 0) {balances[to] = (balances[to]||0) + amount + getMinerRewards(txs)}
-                    else {balances[to] = (balances[to]||0) + amount}
-                }
-                else {
-                    tx = tx.split("||")[0]
-                    if (tx.startsWith("MSG|")) {
-                        let [, from, , amount, ,] = tx.split("|")
-                        amount = Number(amount)
-                        balances[from] = (balances[from]||0) - amount
-                    }
-                    else {
-                        let [from, to, amount,] = tx.split("|")
-                        amount = Number(amount)
-                        balances[from] = (balances[from]||0) - amount
-                        balances[to] = (balances[to]||0) + amount - getFee(amount)
-                    }
-                }
-            }
-        }
-        return balances
-    }
     function getBalance(address) {
         let vBalance = 0
         for (let block of blocks) {
@@ -509,17 +557,16 @@
         return Number(header.split("|")[2])
     }
     function getDifficultyBits(blockIndex) {
-        let tss = []
-        let blocks_ = blocks.slice(0, blockIndex)
-        for (let block of blocks_) {
-            tss.push(getTs(block))
+        if (difficultyCache[blockIndex] !== undefined) {return difficultyCache[blockIndex]}
+        for (let i=difficultyCache.length; i<=blockIndex; i++) {
+            if (i === 1) {difficultyCache[1] = 230; continue}
+            const j = i-1
+            const change = j <= 155
+                ? getDifficultyFromTs(getTs(blocks[j - 1]), getTs(blocks[j]))
+                : getDifficultyFromTs2(getTs(blocks[j - 5]), getTs(blocks[j]))
+            difficultyCache[i] = difficultyCache[i-1] + change
         }
-        let net = 0
-        for (let i=1; i<tss.length; i++) {
-            if (i <= 155) {net += getDifficultyFromTs(tss[i-1], tss[i])}
-            else {net += getDifficultyFromTs2(tss[i-5], tss[i])}
-        }
-        return 230+net
+        return difficultyCache[blockIndex]
     }
     function getBlockReward(blockIndex) {
         if (blockIndex < 5_000) return 10000
@@ -541,6 +588,20 @@
         if (amount > 10) {return Math.max(10, Math.ceil(amount*0.01))}
         else {return amount}
     }
+    function parseAddr(address) {
+        let contacts = JSON.parse(localStorage.getItem("contacts"))
+        for (let contact of contacts) {
+            if (contact[0] === address) {return contact[1]}
+        }
+        return address
+    }
+    function parseContact(address) {
+        let contacts = JSON.parse(localStorage.getItem("contacts"))
+        for (let contact of contacts) {
+            if (contact[1] === address) {return contact[0]}
+        }
+        return address
+    }
 
     let forkCase = false
     let mine = false
@@ -548,20 +609,29 @@
     let totalHashes = 0
     let totalHashesFound = 0
     let lastSeen = Date.now()
+    let hashesAtLastSeen = 0
     let id = 0
+    let latestVersion = ""
     let mempool = []
     let blocks = []
     const url = "https://roman-expanding-alias-talent.trycloudflare.com/"
     async function send(message, nodeId) {
-        await fetch(url + "sendMessage", {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({
-                toId: nodeId,
-                fromId: id,
-                message: message
-            })
-        })
+        while (true) {
+            try {
+                console.log("sending")
+                await fetch(url + "sendMessage", {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({
+                        toId: nodeId,
+                        fromId: id,
+                        message: message
+                    })
+                })
+                break
+            }
+            catch (error) {console.log(error); await sleep(100)}
+        }
     }
     async function getLatestVersion() {
         let response = await fetch("https://api.github.com/repos/7xy95/MeshApp/releases/latest")
@@ -576,19 +646,15 @@
                 body: JSON.stringify({rowId: rowId})
             })
         }
-        catch (error) {}
+        catch (error) {console.log(error)}
     }
     async function read(timeout=5) {
-        const controller = new AbortController()
-        const ms = Math.max(100, Math.floor(timeout * 1000))
-        const timer = setTimeout(() => controller.abort(), ms)
         try {
             let response = await fetch(url + `nextMessage?id=${id}&timeout=${timeout}`)
             response = await response.json()
             return [response.message, response.senderId, response.rowId]
         }
-        catch (error) {return ["noResponse", -1, null]}
-        finally {clearTimeout(timer)}
+        catch (error) {console.log(error); return ["noResponse", -1, null]}
     }
     async function getIds() {
         while (true) {
@@ -607,105 +673,101 @@
     }
 
     async function startLoad() {
-        console.log("restarting...")
+        latestVersion = await getLatestVersion()
+        let infoText = document.getElementById("addressTop")
+        infoText.innerText = "Getting node ids..."
         let ids = await getIds()
-        ids = ids.slice(ids.length-3, ids.length)
         if (ids.length === 0) {return}
+        infoText.innerText = "Registering new id..."
         id = await newId()
-        let idMaxCount = 0
-        let maxCount = 0
-        for (let i=0; i<Math.min(ids.length, 5); i++){
-            let idVal = ids[i]
-            await send("getBlockCount", idVal)
-            while (true) {
-                let [message, senderId, rowId] = await read(3)
-                if (message.startsWith("noResponse")) {break}
-                if (!message.startsWith("r:getBlockCount:") || senderId !== idVal) {
-                    await deleteMsg(rowId)
-                    continue
-                }
-                console.log("got block count")
-                let blockCount = message.slice(16)
-                if (blockCount >= maxCount) {
-                    maxCount = blockCount
-                    idMaxCount = idVal
-                }
-                break
-            }
-        }
+        // let idMaxCount = 0
+        // let maxCount = 0
+        // for (let i=0; i<Math.min(ids.length, 5); i++){
+        //     let idVal = ids[i]
+        //     await send("getBlockCount", idVal)
+        //     while (true) {
+        //         let [message, senderId, rowId] = await read(3)
+        //         if (message.startsWith("noResponse")) {break}
+        //         if (!message.startsWith("r:getBlockCount:") || senderId !== idVal) {
+        //             await deleteMsg(rowId)
+        //             continue
+        //         }
+        //         let blockCount = message.slice(16)
+        //         if (blockCount >= maxCount) {
+        //             maxCount = blockCount
+        //             idMaxCount = idVal
+        //         }
+        //         break
+        //     }
+        // }
         //todo length should also be verified from returned blocks
-        await send("getBlocks", idMaxCount)
-        let correct = true
-        while (true) {
+        let s = true
+        for (let index=0; index<ids.length; index++) {
+            infoText.innerText = "Requesting chain..."
+            let node = ids[index]
+            if (s) {await send("getBlocks", node)}
+            s = true
+            let correct = true
             let [message, senderId, rowId] = await read()
-            if (!message.startsWith("r:getBlocks:") || senderId !== idMaxCount) {
+            if (!message.startsWith("r:getBlocks:") || senderId !== ids[index]) {
                 await deleteMsg(rowId)
+                if (message.startsWith("verify") || message.startsWith("get")) {s = false; index--; console.log("here")}
                 continue
             }
-            console.log("got blocks")
             let blocks_ = split_(message.slice(12))
+            infoText.innerText = `Verifying blocks... 0/${blocks_.length}`
+            await new Promise(requestAnimationFrame)
             let i = -1
             for (let block of blocks_) {
                 i++
-                if (i === 0) {blocks.push(block); continue}
-                if (!verifyBlock(block)) {correct = false; await deleteMsg(rowId); break}//todo if invalid request another node
+                if (i === 0) {blocks.push(block); cacheBlock(block); continue}
+                if (!verifyBlock(block)) {correct = false; await deleteMsg(rowId); break}
                 else {
-                    blocks.push(block)
-                }
-            }
-            if (correct) {void deleteMsg(rowId);break}
-        }
-
-        await send("getMempool", idMaxCount)
-        while (true) {
-            let [message, senderId, rowId] = await read()
-            if (!message.startsWith("r:getMempool:") || senderId !== idMaxCount) {
-                await deleteMsg(rowId)
-                continue
-            }
-            let mempool_ = message.slice(13)
-            console.log("got mempool")
-            if (mempool_ !== ""){
-                mempool_ = split_(mempool_)
-                console.log(mempool_)
-                for (let tx=0; tx<mempool_.length; tx++) {
-                    if (mempool_[tx].startsWith("MSG")) {
-                        if (verifyMsg(mempool_[tx])) {mempool.push(mempool_[tx])}
+                    if (i % 100 === 0) {
+                        infoText.innerText = `Verifying blocks... ${i+1}/${blocks_.length}`
+                        await new Promise(requestAnimationFrame)
                     }
-                    else if (verifyTx(mempool_[tx])) {mempool.push(mempool_[tx])}
+                    blocks.push(block)
+                    cacheBlock(block)
                 }
-                await deleteMsg(rowId)
+            }
+            await deleteMsg(rowId)
+            if (!correct) {continue}
+            infoText.innerText = "Getting mempool..."
+            await send("getMempool", ids[index])
+            while (true) {
+                let [message, senderId, rowId] = await read()
+                console.log(message)
+                if (!message.startsWith("r:getMempool:") || senderId !== ids[index]) {
+                    await deleteMsg(rowId)
+                    continue
+                }
+                let mempool_ = message.slice(13)
+                if (mempool_ !== ""){
+                    mempool_ = split_(mempool_)
+                    for (let tx=0; tx<mempool_.length; tx++) {
+                        if (mempool_[tx].startsWith("MSG")) {
+                            if (verifyMsg(mempool_[tx])) {mempool.push(mempool_[tx])}
+                        }
+                        else if (verifyTx(mempool_[tx])) {mempool.push(mempool_[tx])}
+                    }
+                    await deleteMsg(rowId)
+                }
                 break
             }
+            break
         }
         lastSeen = Date.now()
     }
     async function start() {
+        initContacts()
         await startLoad()
         void refresh()
         void check()
         void mineLoop()
         void checkForDisconnect()
     }
-    function checkDuplicateTx(address, nonce) {
-        try {
-            let i = -1
-            for (let block of blocks) {
-                i++
-                let index = block.indexOf(",")
-                let txs = split_(block.slice(index+1))
-                for (let tx of txs) {
-                    let from = ""; let n = ""
-                    if (tx.startsWith("SYSTEM|")) {continue}
-                    if (tx.startsWith("MSG|")) {[, from, , , n, ] = tx.split("||")[0].split("|")}
-                    else {[from, , ,n] = tx.split("||")[0].split("|")}
-                    if (from === address && n == nonce) {return true}
-                }
-            }
-            return false
-        }
-        catch (error) {return true}
-    }
+
     function verifyTx(tx_, checkMempool=true) {
         try {
             let [tx, pubKey, sig] = tx_.split("||")
@@ -778,18 +840,18 @@
                 let tx_ = tx.split("||")[0]
                 if (tx_.startsWith("MSG|")) {
                     [, from, , , txNonce,] = tx_.split("|")
-                    if (!verifyMsg(tx, false) || checkDuplicateTx(from, txNonce)) {return false}
+                    if (!verifyMsg(tx, false) || nonceCache.has(`${from}|${txNonce}`)) {return false}
                 }
                 else {
                     [from, , , txNonce] = tx_.split("|")
-                    if (!verifyTx(tx, false) || checkDuplicateTx(from, txNonce)) {return false}
+                    if (!verifyTx(tx, false) || nonceCache.has(`${from}|${txNonce}`)) {return false}
                 }
                 for (const [f, n] of t) {
                     if (f === from && n === txNonce) {return false}
                 }
                 t.push([from, txNonce])
             }
-            let tempBalances = getConfirmedBalances()
+            let tempBalances = {...balancesCache}
             let to = ""; let amount = 0; from = ""
             for (let tx of txs.slice(1)) {
                 tx = tx.split("||")[0]
@@ -832,15 +894,16 @@
         while (true) {
             try {
                 if (stop) {await sleep(50); continue}
+                if (window.getSelection() && window.getSelection().toString().length > 0) {await sleep(50); continue}
                 let [v_, unV_] = getBalance(address)
                 document.getElementById("vBalance").innerText = `${(v_/1000).toFixed(3)} MESH`
                 document.getElementById("unVBalance").innerText = `${(unV_/1000).toFixed(3)} MESH`
                 document.getElementById("vBalanceTop").innerText = `Balance: ${(v_/1000).toFixed(3)} MESH`
-                document.getElementById("addressTop").innerText = `Address: ${address}`
+                document.getElementById("addressTop").innerText = `Your Address: ${address}`
 
-                let latestVersion = await getLatestVersion()
-                if (latestVersion !== "v1.0.2") {document.getElementById("version").innerHTML = `<a href="https://github.com/7xy95/MeshApp/releases" style="color: dodgerblue">v1.0.2, ${latestVersion} available!</a>`}
-                else {document.getElementById("version").innerText = "v1.0.2"}
+                if (Math.random() < 0.005) {await getLatestVersion()}
+                if (latestVersion !== APP_VERSION) {document.getElementById("version").innerHTML = `Update available, restart to update`}
+                else {document.getElementById("version").innerText = APP_VERSION}
 
                 document.getElementById("difficulty").innerText = `${getDifficultyBits(blocks.length).toFixed(2)}`
                 document.getElementById("blockCount").innerText =  `${blocks.length}`
@@ -849,20 +912,20 @@
                 let miningToggled = document.getElementById("miningToggledL")
                 let totalHashes_ = document.getElementById("totalHashes")
                 let hashesFound = document.getElementById("hashesFound")
-                // let hashesPerSecond = document.getElementById("hashesPerSecond").innerText //todo
-                // let estTimePerHash = document.getElementById("estTimePerHash").innerText //todo
+                let estTimePerHash = document.getElementById("estTimePerHash")
 
                 if (!mine) {miningToggled.innerText = "Mining Disabled"}
                 else {miningToggled.innerText = "Mining Enabled"}
 
                 totalHashes_.innerText = `${totalHashes.toLocaleString()}`
                 hashesFound.innerText = `${totalHashesFound}`
+                // estTimePerHash.innerText = `${((Number(2**256)/Number(getDifficulty(blocks.length))*(Date.now()-lastSeen))/(60*totalHashes-hashesAtLastSeen)/1000).toFixed(1)} min`
 
                 document.getElementById("history").innerHTML = ""
                 setHistory()
                 await sleep(1000)
             }
-            catch (error) {}
+            catch (error) {console.log(error)}
         }
     }
     async function mineLoop() {
@@ -905,6 +968,7 @@
                     if (verifyBlock(block)) {
                         mempool = []
                         blocks.push(block)
+                        cacheBlock(block)
                         await broadcastBlock(block)
                         totalHashesFound += 1
                         break
@@ -923,7 +987,10 @@
                 document.getElementById("vBalanceTop").innerText = "Syncing..."
                 document.getElementById("addressTop").innerText = "This may take up to 20s..."
                 await sleep(3000)
-                blocks = []//todo better to store so if 'no response' set to blocks
+                difficultyCache = [230]
+                balancesCache = {}
+                nonceCache = new Set()
+                blocks = []
                 await startLoad()
                 lastSeen = Date.now()
                 stop = false
@@ -940,6 +1007,7 @@
                 [message, senderId, rowId] = await read(0.25)
                 console.log(Date.now() - lastSeen)
                 lastSeen = Date.now()
+                hashesAtLastSeen = totalHashes
                 if (message.startsWith("verifyTx:")) {
                     message = message.slice(9)
                     let result = ""
@@ -952,6 +1020,7 @@
                     let result = verifyBlock(message)
                     if (result) {
                         blocks.push(message)
+                        cacheBlock(message)
                         mempool = []
                     }
                     else {
@@ -1000,18 +1069,26 @@
                         forkCase = false
                         continue
                     }
+                    difficultyCache = [230]
+                    balancesCache = {}
+                    nonceCache = new Set()
                     blocks = []
                     let i = -1
                     for (let block of b) {
                         i++
-                        if (i === 0) {blocks.push(block); continue}
+                        if (i === 0) {blocks.push(block); cacheBlock(block); continue}
                         let result = verifyBlock(block)
                         if (!result) {
+                            difficultyCache = [230]
+                            balancesCache = {}
+                            nonceCache = new Set()
                             blocks = original
+                            for (let block of blocks) {cacheBlock(block)}
                             break
                         }
                         else {
                             blocks.push(block)
+                            cacheBlock(block)
                         }
                     }
                     forkCase = false
@@ -1029,7 +1106,7 @@
     async function logIn() {
         const seed = document.getElementById("walletSeedInput").value
         seedToAddress(seed)
-        document.getElementById("logInPanel").style.display='none'
+        document.getElementById("logInPanel").style.display = 'none'
         document.getElementById("mainPanel").style.display = 'flex'
         await start()
     }
@@ -1045,6 +1122,9 @@
         document.getElementById("dataInput").placeholder = "Enter Message..."
         popup = 1
     }
+    function openContactPopup() {
+        document.getElementById("contacts").style.display = "flex"
+    }
     async function submitTx() {
         async function broadcastTx(tx) {
             let ids = await getIds()
@@ -1053,6 +1133,7 @@
             }
         }
         let toAddress = document.getElementById("addressInput").value
+        toAddress = parseContact(toAddress)
         let bal = getSpendableBalance(address)
         if (popup === 0) {
             closePopup()
@@ -1082,31 +1163,36 @@
         document.getElementById("tx").style.display = "none"
         popup = -1
     }
+    function closeHistoryPopup() {
+        document.getElementById("contacts").style.display = "none"
+    }
     function setHistory() {
+        let t = 0
         for (let tx of mempool) {
             tx = tx.split("||")[0]
             if (tx.startsWith("MSG|")) {
                 let [, from, to, , , messageHex] = tx.split("|")
                 let bytes = Uint8Array.from(Buffer.from(messageHex, "hex"))
                 let messageText = new TextDecoder("utf-8").decode(bytes)
-                if (from === address) {addHistoryElement("msg", -1, -1, to)}
-                if (to === address) {addHistoryElement("msg", -1, 0, from, messageText)}
+                if (from === address) {addHistoryElement("msg", -1, -1, to); t++}
+                if (to === address) {addHistoryElement("msg", -1, 0, from, messageText); t++}
                 continue
             }
             let [from, to, amount,] = tx.split("|")
-            if (from === address) {addHistoryElement("tx", -1, -1*Number(amount)/1000, to)}
-            if (to === address) {addHistoryElement("tx", -1, (Number(amount)-getFee(Number(amount)))/1000, from)}
+            if (from === address) {addHistoryElement("tx", -1, -1*Number(amount)/1000, parseAddr(to)); t++}
+            if (to === address) {addHistoryElement("tx", -1, (Number(amount)-getFee(Number(amount)))/1000, parseAddr(from)); t++}
         }
         let i = -1; let b = blocks.length+1
         for (let block of [...blocks].reverse()) {
+            if (t>100) {return}
             i++; b--
             let index = block.indexOf(",")
             let txs = split_(block.slice(index+1))
             for (let tx of txs) {
                 if (tx.startsWith("SYSTEM|")) {
-                    if (i !== 0) {
+                    if (b !== 0) {
                         let parts = tx.split("|")
-                        if (parts[1] === address) {addHistoryElement("mined", i, (getBlockReward(b)+getMinerRewards(txs))/1000)}
+                        if (parts[1] === address) {addHistoryElement("mined", i, (getBlockReward(b)+getMinerRewards(txs))/1000); t++}
                     }
                     continue
                 }
@@ -1115,13 +1201,13 @@
                     let [, from, to, , , messageHex] = tx.split("|")
                     let bytes = Uint8Array.from(Buffer.from(messageHex, "hex"))
                     let messageText = new TextDecoder("utf-8").decode(bytes)
-                    if (from === address) {addHistoryElement("msg", i, -1, to)}
-                    if (to === address) {addHistoryElement("msg", i, 0, from, messageText)}
+                    if (from === address) {addHistoryElement("msg", i, -1, parseAddr(to)); t++}
+                    if (to === address) {addHistoryElement("msg", i, 0, parseAddr(from), messageText); t++}
                     continue
                 }
                 let [from, to, amount,] = tx.split("|")
-                if (from === address) {addHistoryElement("tx", i, -1*Number(amount)/1000, to)}
-                if (to === address) {addHistoryElement("tx", i, (Number(amount)-getFee(Number(amount)))/1000, from)}
+                if (from === address) {addHistoryElement("tx", i, -1*Number(amount)/1000, parseAddr(to)); t++}
+                if (to === address) {addHistoryElement("tx", i, (Number(amount)-getFee(Number(amount)))/1000, parseAddr(from)); t++}
             }
         }
     }
@@ -1137,7 +1223,7 @@
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1dcd20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-banknote-arrow-up-icon lucide-banknote-arrow-up iconH"><path d="M12 18H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5"/><path d="M18 12h.01"/><path d="M19 22v-6"/><path d="m22 19-3-3-3 3"/><path d="M6 12h.01"/><circle cx="12" cy="12" r="2"/></svg>
                     ${time}
                     <p class="changeH" style="color: #1dcd20">+${change.toFixed(3)}</p>
-                    <p class="infoH">Received from ${addr}</p>
+                    <p class="infoH">Received from <span style="color: #899df1">${addr}</span></p>
                 </div>
                 `
             }
@@ -1147,7 +1233,7 @@
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ff4242" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-banknote-arrow-down-icon lucide-banknote-arrow-down iconH"><path d="M12 18H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5"/><path d="m16 19 3 3 3-3"/><path d="M18 12h.01"/><path d="M19 16v6"/><path d="M6 12h.01"/><circle cx="12" cy="12" r="2"/></svg>
                     ${time}
                     <p class="changeH" style="color: #ff4242">${change.toFixed(3)}</p>
-                    <p class="infoH">Sent to ${addr}</p>
+                    <p class="infoH">Sent to <span style="color: #899df1">${addr}</p>
                 </div>
                 `
             }
@@ -1159,7 +1245,7 @@
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6196ea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-message-square-text-icon lucide-message-square-text iconH"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"/><path d="M7 11h10"/><path d="M7 15h6"/><path d="M7 7h8"/></svg>
                     ${time}
                     <p class="changeH">Message received</p>
-                    <p class="infoH">From ${addr}: ${msg}</p>
+                    <p class="infoH">From <span style="color: #899df1">${addr}: <span style="color: #6774ff">${msg}</p>
                 </div>
                 `
             }
@@ -1169,7 +1255,7 @@
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6196ea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-message-square-text-icon lucide-message-square-text iconH"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"/><path d="M7 11h10"/><path d="M7 15h6"/><path d="M7 7h8"/></svg>
                     ${time}
                     <p class="changeH" style="color: #ff4242">-1.000</p>
-                    <p class="infoH">Message sent to ${addr}</p>
+                    <p class="infoH">Message sent to <span style="color: #899df1">${addr}</p>
                 </div>
                 `
             }
@@ -1184,6 +1270,29 @@
             </div>
             `
         }
+    }
+    function removeContact(addr) {
+        document.getElementById("contactList").innerHTML = ""
+        let contacts = JSON.parse(localStorage.getItem("contacts"))
+        let result = []
+        for (let contact of contacts) {
+            if (contact[0] !== addr) {result.push(contact)}
+        }
+        localStorage.setItem("contacts", JSON.stringify(result))
+        initContacts()
+    }
+    function addContact() {
+        const addr = document.getElementById("contactAddress").value
+        const name = document.getElementById("contactName").value
+        document.getElementById("contactList").innerHTML += `
+            <div class="contactItem">
+                <span>${addr}: ${name}</span>
+                <button class="btn smallBtn" onclick="removeContact('${addr}')">×</button>
+            </div>
+        `
+        let data = JSON.parse(localStorage.getItem("contacts"))
+        data.push([addr, name])
+        localStorage.setItem("contacts", JSON.stringify(data))
     }
 </script>
 </body>
