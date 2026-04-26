@@ -902,7 +902,7 @@
                 document.getElementById("addressTop").innerText = `Your Address: ${address}`
 
                 if (Math.random() < 0.005) {await getLatestVersion()}
-                if (latestVersion !== APP_VERSION) {document.getElementById("version").innerHTML = `Update available, restart to update`}
+                if (latestVersion !== APP_VERSION) {document.getElementById("version").innerHTML = `<a href="https://github.com/7xy95/MeshApp/releases" style="color: dodgerblue">Download latest update</a>`}
                 else {document.getElementById("version").innerText = APP_VERSION}
 
                 document.getElementById("difficulty").innerText = `${getDifficultyBits(blocks.length).toFixed(2)}`
