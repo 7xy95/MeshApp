@@ -204,6 +204,9 @@
             grid-row: 2;
             word-break: break-all;
         }
+        .history::-webkit-scrollbar {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -261,6 +264,10 @@
                     <p style="margin: 0">Mining</p>
                     <button class="btn" onclick="mine = !mine" style="margin-top: 0; background-color: #2b3853">Toggle Mining</button>
                 </div>
+                <label style="display: flex">
+                    <p style="margin-right: 15px">Use GPU </p>
+                    <input type="checkbox" onchange="useGpu = this.checked">
+                </label>
                 <hr>
                 <p class="info">
                     <span class="label" id="miningToggledL"></span>
@@ -308,6 +315,7 @@
         <div class="contactList" id="contactList"></div>
     </div>
 </div>
+<script src="gpuMiner.js"></script>
 <script>
     const APP_VERSION = "v1.0.4"
     function initContacts() {
@@ -606,6 +614,7 @@
     let forkCase = false
     let mine = false
     let stop = false
+    let useGpu = false
     let totalHashes = 0
     let totalHashesFound = 0
     let lastSeen = Date.now()
@@ -765,7 +774,6 @@
         void refresh()
         void check()
         void mineLoop()
-        void checkForDisconnect()
     }
 
     function verifyTx(tx_, checkMempool=true) {
@@ -947,23 +955,18 @@
             let index = blocks[blocks.length-1].indexOf(",")
             let lastHeader = blocks[blocks.length-1].slice(0, index)
             let [lHash, lRoot, lTs, lNonce] = lastHeader.split("|")
-            const priorHash = sha256(sha256(Buffer.from(`${lHash}|${lRoot}|${Number(lTs)}|${Number(lNonce)}`, "utf-8"))).toString("hex")
-            const difficultyHex = getDifficulty(blocks.length).toString(16).padStart(64, "0")
-            const difficultyBytes = Buffer.from(difficultyHex, "hex")
-            const merkleRoot = sha256(Buffer.from(txs.join(""), "utf-8")).toString("hex")
-            const ts = Math.floor(Date.now()/1000)
-            const prefix = `${priorHash}|${merkleRoot}|${ts}|`
-            while (counter < 25000) {
-                counter++
-                const header = prefix + String(nonce+counter)
-                const result = sha256(sha256(Buffer.from(header, "utf-8")))
-
-                let passed = true
-                for (let i = 0; i < 32; i++) {
-                    if (result[i] < difficultyBytes[i]) {break}
-                    if (result[i] > difficultyBytes[i]) {passed = false; break}
-                }
-                if (passed) {
+            if (useGpu) {
+                const priorHash = BigInt("0x" + sha256(sha256(Buffer.from(`${lHash}|${lRoot}|${Number(lTs)}|${Number(lNonce)}`, "utf-8"))).toString("hex")).toString(16)
+                const difficultyHex = getDifficulty(blocks.length).toString(16).padStart(64, "0")
+                const difficultyBytes = Buffer.from(difficultyHex, "hex")
+                const merkleRoot = sha256(Buffer.from(txs.join(""), "utf-8")).toString("hex")
+                const ts = Math.floor(Date.now()/1000)
+                const prefix = `${priorHash}|${merkleRoot}|${ts}|`
+                const result = await gpuHash(prefix, difficultyBytes, nonce, 2_000_000)
+                totalHashes += result.attempts
+                if (result.found) {
+                    const header = prefix + String(result.nonce)
+                    const hash = sha256(sha256(Buffer.from(header, "utf-8")))
                     const block = `${header},${JSON.stringify(txs)}`
                     if (verifyBlock(block)) {
                         mempool = []
@@ -971,32 +974,58 @@
                         cacheBlock(block)
                         await broadcastBlock(block)
                         totalHashesFound += 1
-                        break
                     }
                 }
             }
-            totalHashes += counter
-            await sleep(0)
+            else {
+                const priorHash = sha256(sha256(Buffer.from(`${lHash}|${lRoot}|${Number(lTs)}|${Number(lNonce)}`, "utf-8"))).toString("hex")
+                const difficultyHex = getDifficulty(blocks.length).toString(16).padStart(64, "0")
+                const difficultyBytes = Buffer.from(difficultyHex, "hex")
+                const merkleRoot = sha256(Buffer.from(txs.join(""), "utf-8")).toString("hex")
+                const ts = Math.floor(Date.now()/1000)
+                const prefix = `${priorHash}|${merkleRoot}|${ts}|`
+                while (counter < 25000) {
+                    counter++
+                    const header = prefix + String(nonce+counter)
+                    const result = sha256(sha256(Buffer.from(header, "utf-8")))
+
+                    let passed = true
+                    for (let i = 0; i < 32; i++) {
+                        if (result[i] < difficultyBytes[i]) {break}
+                        if (result[i] > difficultyBytes[i]) {passed = false; break}
+                    }
+                    if (passed) {
+                        const block = `${header},${JSON.stringify(txs)}`
+                        if (verifyBlock(block)) {
+                            mempool = []
+                            blocks.push(block)
+                            cacheBlock(block)
+                            await broadcastBlock(block)
+                            totalHashesFound += 1
+                            break
+                        }
+                    }
+                }
+                totalHashes += counter
+                await sleep(0)
+            }
         }
     }
     async function checkForDisconnect() {
-        while (true) {
-            if (Date.now() - lastSeen > 10000) {
-                console.log(Date.now() - lastSeen)
-                stop = true
-                document.getElementById("vBalanceTop").innerText = "Syncing..."
-                document.getElementById("addressTop").innerText = "This may take up to 20s..."
-                await sleep(3000)
-                difficultyCache = [230]
-                balancesCache = {}
-                nonceCache = new Set()
-                blocks = []
-                await startLoad()
-                lastSeen = Date.now()
-                stop = false
-                console.log("restarted...")
-            }
-            await sleep(20)
+        if (Date.now() - lastSeen > 10000) {
+            console.log(Date.now() - lastSeen)
+            stop = true
+            document.getElementById("vBalanceTop").innerText = "Syncing..."
+            document.getElementById("addressTop").innerText = "This may take up to 20s..."
+            await sleep(3000)
+            difficultyCache = [230]
+            balancesCache = {}
+            nonceCache = new Set()
+            blocks = []
+            await startLoad()
+            lastSeen = Date.now()
+            stop = false
+            console.log("restarted...")
         }
     }
     async function check() {
@@ -1006,6 +1035,7 @@
             try {
                 [message, senderId, rowId] = await read(0.25)
                 console.log(Date.now() - lastSeen)
+                await checkForDisconnect()
                 lastSeen = Date.now()
                 hashesAtLastSeen = totalHashes
                 if (message.startsWith("verifyTx:")) {

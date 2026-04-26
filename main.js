@@ -10,8 +10,8 @@ updateElectronApp({
 })
 function createWindow() {
     const win = new BrowserWindow({
-        width: 700,
-        height: 710,
+        width: 750,
+        height: 750,
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false,
