@@ -317,7 +317,7 @@
 </div>
 <script src="gpuMiner.js"></script>
 <script>
-    const APP_VERSION = "v1.0.4"
+    const APP_VERSION = "v1.0.5"
     function initContacts() {
         if (localStorage.getItem("contacts") === null) {localStorage.setItem("contacts", JSON.stringify([]))}
         else {
@@ -689,27 +689,6 @@
         if (ids.length === 0) {return}
         infoText.innerText = "Registering new id..."
         id = await newId()
-        // let idMaxCount = 0
-        // let maxCount = 0
-        // for (let i=0; i<Math.min(ids.length, 5); i++){
-        //     let idVal = ids[i]
-        //     await send("getBlockCount", idVal)
-        //     while (true) {
-        //         let [message, senderId, rowId] = await read(3)
-        //         if (message.startsWith("noResponse")) {break}
-        //         if (!message.startsWith("r:getBlockCount:") || senderId !== idVal) {
-        //             await deleteMsg(rowId)
-        //             continue
-        //         }
-        //         let blockCount = message.slice(16)
-        //         if (blockCount >= maxCount) {
-        //             maxCount = blockCount
-        //             idMaxCount = idVal
-        //         }
-        //         break
-        //     }
-        // }
-        //todo length should also be verified from returned blocks
         let s = true
         for (let index=0; index<ids.length; index++) {
             infoText.innerText = "Requesting chain..."
