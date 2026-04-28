@@ -146,7 +146,7 @@
         .popupBoxLeft {
             align-items: flex-start;
             gap: 10px;
-            padding-left: 40px;
+            padding-left: 20px;
         }
         .contactItem {
             display: flex;
@@ -255,7 +255,11 @@
                     <span class="value" id="blockCount">-1</span>
                 </p>
                 <p class="info">
-                    <span class="label">Block Reward</span>
+                    <span class="label">Avg Block Time:</span>
+                    <span class="value" id="blockTime">-1</span>
+                </p>
+                <p class="info">
+                    <span class="label">Block Reward:</span>
                     <span class="value" id="blockReward">-1</span>
                 </p>
             </div>
@@ -308,9 +312,10 @@
 </div>
 <div class="popup" style="display: none" id="contacts">
     <div class="popupBox popupBoxLeft" style="width: 600px; height: 450px; margin-left: 40px; gap: 0">
+        <p style="font-size: 24px; margin-top: 20px">Contacts</p>
         <button class="btn" onclick="closeHistoryPopup()" style="font-size: 32px; margin-top: 0; background-color: #2b3853; position: absolute; top: 10px; right: 10px">×</button>
-        <input class="input" id="contactAddress" placeholder="Enter address to save as contact..." style="width: 330px; margin-top: 40px">
-        <input class="input" id="contactName" placeholder="Enter name..." style="width: 330px; margin-top: 20px">
+        <input class="input" id="contactAddress" placeholder="Enter address to save as contact..." style="width: 330px">
+        <input class="input" id="contactName" placeholder="Enter name..." style="width: 330px; margin-top: 10px">
         <button class="btn" onclick="addContact()" style="margin-top: 10px; margin-bottom: 10px; background-color: #2b3853">Add Contact</button>
         <div class="contactList" id="contactList"></div>
     </div>
@@ -551,6 +556,13 @@
         diff = Math.max(Math.min(diff, 0.3), -0.3)
         return Math.round(diff*100)/100
     }
+    function getDifficultyFromTs3(prevTs, nextTs) {
+        const TARGET = 300
+        let avg = (nextTs - prevTs)/25
+        let diff = Math.log2(avg/TARGET)
+        diff = Math.max(Math.min(diff, 0.5), -0.5)
+        return Math.round(diff*100)/100
+    }
     function getDifficulty(blockIndex) {
         const bits = getDifficultyBits(blockIndex)
         const int = Math.floor(bits)
@@ -569,9 +581,10 @@
         for (let i=difficultyCache.length; i<=blockIndex; i++) {
             if (i === 1) {difficultyCache[1] = 230; continue}
             const j = i-1
-            const change = j <= 155
-                ? getDifficultyFromTs(getTs(blocks[j - 1]), getTs(blocks[j]))
-                : getDifficultyFromTs2(getTs(blocks[j - 5]), getTs(blocks[j]))
+            let change = 0
+            if (j <= 155) {change = getDifficultyFromTs(getTs(blocks[j - 1]), getTs(blocks[j]))}
+            else if (j <= 7680) {change = getDifficultyFromTs2(getTs(blocks[j - 5]), getTs(blocks[j]))}
+            else {change = getDifficultyFromTs3(getTs(blocks[j - 25]), getTs(blocks[j]))}
             difficultyCache[i] = difficultyCache[i-1] + change
         }
         return difficultyCache[blockIndex]
@@ -894,6 +907,7 @@
 
                 document.getElementById("difficulty").innerText = `${getDifficultyBits(blocks.length).toFixed(2)}`
                 document.getElementById("blockCount").innerText =  `${blocks.length}`
+                document.getElementById("blockTime").innerText =  `${Math.floor((Date.now()/1000 - getTs(blocks[blocks.length-25]))/25)}s`
                 document.getElementById("blockReward").innerText = `${((getBlockReward(blocks.length)+getMinerRewards(mempool))/1000).toFixed(3)} MESH`
 
                 let miningToggled = document.getElementById("miningToggledL")
@@ -906,7 +920,6 @@
 
                 totalHashes_.innerText = `${totalHashes.toLocaleString()}`
                 hashesFound.innerText = `${totalHashesFound}`
-                // estTimePerHash.innerText = `${((Number(2**256)/Number(getDifficulty(blocks.length))*(Date.now()-lastSeen))/(60*totalHashes-hashesAtLastSeen)/1000).toFixed(1)} min`
 
                 document.getElementById("history").innerHTML = ""
                 setHistory()
@@ -925,6 +938,7 @@
         while (true) {
             if (stop) {await sleep(50); continue}
             if (!mine) {await sleep(50); continue}
+            if (Date.now() - lastSeen > 5000) {await sleep(50); continue}
             let txs = [...mempool]
             txs.unshift(`SYSTEM|${address}|${getBlockReward(blocks.length)}|0`)
 
@@ -1010,12 +1024,12 @@
     async function check() {
         while (true) {//todo getRecentTxs
             if (stop) {await sleep(50); continue}
-            let message = ""; let senderId = 0; let rowId = null
+            let message = ""; let senderId = 0; let rowId = null;
             try {
+                await checkForDisconnect();
+                lastSeen = Date.now();
                 [message, senderId, rowId] = await read(0.25)
                 console.log(Date.now() - lastSeen)
-                await checkForDisconnect()
-                lastSeen = Date.now()
                 hashesAtLastSeen = totalHashes
                 if (message.startsWith("verifyTx:")) {
                     message = message.slice(9)
@@ -1275,7 +1289,7 @@
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6196ea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pickaxe-icon lucide-pickaxe iconH"><path d="m14 13-8.381 8.38a1 1 0 0 1-3.001-3L11 9.999"/><path d="M15.973 4.027A13 13 0 0 0 5.902 2.373c-1.398.342-1.092 2.158.277 2.601a19.9 19.9 0 0 1 5.822 3.024"/><path d="M16.001 11.999a19.9 19.9 0 0 1 3.024 5.824c.444 1.369 2.26 1.676 2.603.278A13 13 0 0 0 20 8.069"/><path d="M18.352 3.352a1.205 1.205 0 0 0-1.704 0l-5.296 5.296a1.205 1.205 0 0 0 0 1.704l2.296 2.296a1.205 1.205 0 0 0 1.704 0l5.296-5.296a1.205 1.205 0 0 0 0-1.704z"/></svg>
                 ${time}
                 <p class="changeH" style="color: #1dcd20">+${change.toFixed(3)}</p>
-                <p class="infoH">Block mined</p>
+                <p class="infoH">Block #${blocks.length - blocksAgo} mined</p>
             </div>
             `
         }
