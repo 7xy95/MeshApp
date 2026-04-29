@@ -251,12 +251,12 @@
                     <span class="value" id="difficulty">-1</span>
                 </p>
                 <p class="info">
-                    <span class="label">Block Count:</span>
-                    <span class="value" id="blockCount">-1</span>
+                    <span class="label">Retarget:</span>
+                    <span class="value" id="nextDiff">-1</span>
                 </p>
                 <p class="info">
-                    <span class="label">Avg Block Time:</span>
-                    <span class="value" id="blockTime">-1</span>
+                    <span class="label">Block Count:</span>
+                    <span class="value" id="blockCount">-1</span>
                 </p>
                 <p class="info">
                     <span class="label">Block Reward:</span>
@@ -563,6 +563,14 @@
         diff = Math.max(Math.min(diff, 0.5), -0.5)
         return Math.round(diff*100)/100
     }
+    function getDifficultyFromTs4(prevTs, nextTs, window=10) {
+        const TARGET = 300
+        let avg = (nextTs - prevTs)/window
+        let diff = Math.log2(avg/TARGET)
+        let diff_ = Math.max(Math.min(diff, 1), -1)
+        if (Math.abs(diff_) === 1) {diff_ += (diff - diff_)/4}
+        return Math.round(diff_*100)/100
+    }
     function getDifficulty(blockIndex) {
         const bits = getDifficultyBits(blockIndex)
         const int = Math.floor(bits)
@@ -584,7 +592,8 @@
             let change = 0
             if (j <= 155) {change = getDifficultyFromTs(getTs(blocks[j - 1]), getTs(blocks[j]))}
             else if (j <= 7680) {change = getDifficultyFromTs2(getTs(blocks[j - 5]), getTs(blocks[j]))}
-            else {change = getDifficultyFromTs3(getTs(blocks[j - 25]), getTs(blocks[j]))}
+            else if (j <= 7950) {change = getDifficultyFromTs3(getTs(blocks[j - 25]), getTs(blocks[j]))}
+            else if (i % 10 === 0) {change = getDifficultyFromTs4(getTs(blocks[j - 10]), getTs(blocks[j]))}
             difficultyCache[i] = difficultyCache[i-1] + change
         }
         return difficultyCache[blockIndex]
@@ -907,7 +916,16 @@
 
                 document.getElementById("difficulty").innerText = `${getDifficultyBits(blocks.length).toFixed(2)}`
                 document.getElementById("blockCount").innerText =  `${blocks.length}`
-                document.getElementById("blockTime").innerText =  `${Math.floor((Date.now()/1000 - getTs(blocks[blocks.length-25]))/25)}s`
+
+                let w = blocks.length - Math.floor(blocks.length/10)*10
+                let amount = 0
+                if (w !== 0) {amount = getDifficultyFromTs4(getTs(blocks[Math.floor(blocks.length/10)*10 -1]), Math.floor(Date.now()/1000), w)}
+                else {amount = 0}
+                const sign = Math.sign(amount)
+                amount = sign * amount
+                if (sign === 1) {document.getElementById("nextDiff").innerText = `+${amount}`}
+                else {document.getElementById("nextDiff").innerText = `-${amount}`}
+
                 document.getElementById("blockReward").innerText = `${((getBlockReward(blocks.length)+getMinerRewards(mempool))/1000).toFixed(3)} MESH`
 
                 let miningToggled = document.getElementById("miningToggledL")
@@ -1029,7 +1047,6 @@
                 await checkForDisconnect();
                 lastSeen = Date.now();
                 [message, senderId, rowId] = await read(0.25)
-                console.log(Date.now() - lastSeen)
                 hashesAtLastSeen = totalHashes
                 if (message.startsWith("verifyTx:")) {
                     message = message.slice(9)
