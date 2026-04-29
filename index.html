@@ -646,6 +646,15 @@
     let mempool = []
     let blocks = []
     const url = "https://roman-expanding-alias-talent.trycloudflare.com/"
+
+    setInterval(() => {
+        if (Date.now() - lastSeen > 10000) {
+            if (stop) {return}
+            void fixDisconnect()
+        }
+        lastSeen = Date.now()
+    }, 1000)
+
     async function send(message, nodeId) {
         while (true) {
             try {
@@ -680,12 +689,15 @@
         catch (error) {console.log(error)}
     }
     async function read(timeout=5) {
+        const controller = new AbortController()
+        const timer = setTimeout(() => {controller.abort()}, timeout*3000)
         try {
-            let response = await fetch(url + `nextMessage?id=${id}&timeout=${timeout}`)
+            let response = await fetch(url + `nextMessage?id=${id}&timeout=${timeout}`, {signal: controller.signal})
             response = await response.json()
-            return [response.message, response.senderId, response.rowId]
+            return [response.message, response.senderId, response.rowId, true]
         }
-        catch (error) {console.log(error); return ["noResponse", -1, null]}
+        catch (error) {console.log(error); return ["noResponse", -1, null, false]}
+        finally {clearTimeout(timer)}
     }
     async function getIds() {
         while (true) {
@@ -1022,30 +1034,25 @@
             }
         }
     }
-    async function checkForDisconnect() {
-        if (Date.now() - lastSeen > 10000) {
-            console.log(Date.now() - lastSeen)
-            stop = true
-            document.getElementById("vBalanceTop").innerText = "Syncing..."
-            document.getElementById("addressTop").innerText = "This may take up to 20s..."
-            await sleep(3000)
-            difficultyCache = [230]
-            balancesCache = {}
-            nonceCache = new Set()
-            blocks = []
-            await startLoad()
-            lastSeen = Date.now()
-            stop = false
-            console.log("restarted...")
-        }
+    async function fixDisconnect() {
+        console.log(Date.now() - lastSeen)
+        stop = true
+        document.getElementById("vBalanceTop").innerText = "Reconnecting..."
+        document.getElementById("addressTop").innerText = "This may take up to 20s..."
+        difficultyCache = [230]
+        balancesCache = {}
+        nonceCache = new Set()
+        blocks = []
+        await startLoad()
+        lastSeen = Date.now()
+        stop = false
+        console.log("restarted...")
     }
     async function check() {
-        while (true) {//todo getRecentTxs
+        while (true) {
             if (stop) {await sleep(50); continue}
             let message = ""; let senderId = 0; let rowId = null;
             try {
-                await checkForDisconnect();
-                lastSeen = Date.now();
                 [message, senderId, rowId] = await read(0.25)
                 hashesAtLastSeen = totalHashes
                 if (message.startsWith("verifyTx:")) {
