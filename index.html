@@ -227,14 +227,14 @@
                 <p>Balance</p>
                 <hr>
                 <p class="info">
-                    <span class="label">Verified Balance:</span>
+                    <span class="label">Verified:</span>
                     <span class="value" id="vBalance">0.000</span>
                 </p>
-                <p class="info">
-                    <span class="label">Unverified Balance:</span>
+                <p class="info" style="margin-bottom: 15px">
+                    <span class="label">Unverified:</span>
                     <span class="value" id="unVBalance">0.000</span>
                 </p>
-                <div class="miningHeader">
+                <div class="miningHeader" style="margin-top: 10px">
                     <button class="btn" onclick="openTxPopup()" style="margin-top: 0; background-color: #2b3853">Send MESH</button>
                     <button class="btn" onclick="openMsgPopup()" style="margin-top: 0; background-color: #2b3853">Send Msg (1 MESH)</button>
                 </div>
@@ -270,7 +270,7 @@
                 </div>
                 <label style="display: flex">
                     <p style="margin-right: 15px">Use GPU </p>
-                    <input type="checkbox" onchange="useGpu = this.checked">
+                    <input type="checkbox" onchange="useGPU = this.checked" id="useGPUCheckbox">
                 </label>
                 <hr>
                 <p class="info">
@@ -322,11 +322,12 @@
 </div>
 <script src="gpuMiner.js"></script>
 <script>
-    const APP_VERSION = "v1.1.0"
+    const APP_VERSION = "v1.2.1"
+    const GENESIS = "0000000000000000000000000000000000000000000000000000000000000000|935a313db940e4e3950a4e28bd0df6175aa03dcf29dfadc20efda2638c01b0e3|1774694716|13484619,[SYSTEM|0000000000000000000000000000000000000000|10000|0,SYSTEM|0a74dc9a74505d0d0c3467768d8bfee675c55617|4000|0,SYSTEM|0bf1d6199ab6273a9b320a4a891b040bc8858396|4000|0,SYSTEM|0d581e9c6d3276be90af893e24dc719a7cc72262|10000|0,SYSTEM|0dca1379707a0d60b103d958404d8a7a5eae880b|4000|0,SYSTEM|1a42c30482a50a469cec63bdb62158f0efaf97c4|4000|0,SYSTEM|2155e2425d076a2de830251920c9603791596af8|3000|0,SYSTEM|2442c616fd7c91a03c01eeb47e487555d180a984|1830000|0,SYSTEM|2d2e0aedd0850213ab0a71b2ff8e5ed47f4effe7|13000|0,SYSTEM|35ec9347fb781fe55b2995218bd544783231d86f|4000|0,SYSTEM|384be4f6f91c805e21b1bd32dbb68a73583dae56|25000|0,SYSTEM|3a01e4d633cee7fc9a34cb034b92608502c409bc|20000|0,SYSTEM|3ae637d7353bd8d7ccdd705fa020d958370b94b8|13000|0,SYSTEM|469706da92206dc2a45c9efa34b8809c8216bc34|4000|0,SYSTEM|4b525cf93bf84e322f69c59ad44ccfaa0fc7df75|4000|0,SYSTEM|50fd1abcb005e65f351caeec1eefcd73afe12d70|25000|0,SYSTEM|68e09039506c053f1b995d963ef897caf985f7ab|10000|0,SYSTEM|6d7a3f726f558f480e357ccbd1b8d8a80956eeb7|4000|0,SYSTEM|8288a9ac11d3e033a293659d5cbec991677c4c7c|15000|0,SYSTEM|8c92a4003a6b0950a7735d8c48ac9a1b8202eaac|104000|0,SYSTEM|906dbe3def97d809c27c4cfc9019a11ee0822dc7|19000|0,SYSTEM|98c24d2dd4058f8c9df1edb428f3ad0ac3be181a|921000|0,SYSTEM|a7ca91134370a73e687edb0388f348467262fb83|1000|0,SYSTEM|ad9eb264a8a69b2e994f8e99923fc8d447c912a4|4000|0,SYSTEM|adfbe0fc6884d51ad3ce054823493f900a33ed10|77000|0,SYSTEM|b195b7bb196f967ae57b1cccd0bc6bb0b7bb2961|4000|0,SYSTEM|b2f7f2016dacd0129ebcf7c1692964a0254ec525|3000|0,SYSTEM|bfe2a86f33e265d941caaf38f10aca4fd98e322f|4000|0,SYSTEM|c09cdc089d4100295711955f2457ef9fcc28030f|4000|0,SYSTEM|cb07dbe8de4a0a69c740b06c4b1f53fbeaf9e182|4000|0,SYSTEM|ccccd37dfe8ffcaa44787e07410c0bf29dcb4bfe|4000|0,SYSTEM|d7017b1d017ba24675769b4729219acb55bb43b9|4000|0,SYSTEM|e116e296e531bb0abbb2bad896e168d4cf998dbb|25000|0,SYSTEM|ed311963c66a41024a0c66b65d1e2674789c5224|4000|0,SYSTEM|f0f6f53682e90e5475a46fa589f57811830c8e79|100000|0,SYSTEM|f56ac4ea514c2f5f93b2d4300d980ef9492ae8e2|2000|0]"
     function initContacts() {
-        if (localStorage.getItem("contacts") === null) {localStorage.setItem("contacts", JSON.stringify([]))}
+        if (getContacts() === null) {saveContacts([])}
         else {
-            let contacts = JSON.parse(localStorage.getItem("contacts"))
+            let contacts = getContacts()
             for (let contact of contacts) {
                 document.getElementById("contactList").innerHTML += `
                     <div class="contactItem">
@@ -336,6 +337,53 @@
                 `
             }
         }
+    }
+    function getContacts() {
+        try {
+            if (!fs.existsSync(contacts)) {
+                fs.writeFileSync(contacts, "[]")
+            }
+            return JSON.parse(fs.readFileSync(contacts, "utf-8"))
+        }
+        catch {
+            return []
+        }
+    }
+    function saveContacts(data) {
+        fs.writeFileSync(contacts, JSON.stringify(data, null, 2))
+    }
+    function getSavedBlocks() {
+        try {
+            if (!fs.existsSync(blocksPath)) {
+                fs.writeFileSync(blocksPath, "[]")
+            }
+            return JSON.parse(fs.readFileSync(blocksPath, "utf-8"))
+        }
+        catch {
+            return []
+        }
+    }
+    function saveBlocks() {
+        fs.writeFileSync(blocksPath, JSON.stringify(blocks))
+    }
+    function saveSession() {
+        localStorage.setItem("privateKey", Buffer.from(privateKey).toString("hex"))
+        localStorage.setItem("publicKey", Buffer.from(publicKey).toString("hex"))
+        localStorage.setItem("address", address)
+        localStorage.setItem("mine", JSON.stringify(mine))
+        localStorage.setItem("useGPU", JSON.stringify(useGPU))
+    }
+    async function loadSession() {
+        if (localStorage.getItem("privateKey") == null) {return}
+        privateKey = Buffer.from(localStorage.getItem("privateKey"), "hex")
+        publicKey = Buffer.from(localStorage.getItem("publicKey"), "hex")
+        address = localStorage.getItem("address")
+        mine = JSON.parse(localStorage.getItem("mine"))
+        useGPU = JSON.parse(localStorage.getItem("useGPU"))
+        document.getElementById("logInPanel").style.display = "none"
+        document.getElementById("mainPanel").style.display = "flex"
+        document.getElementById("useGPUCheckbox").checked = useGPU
+        void start()
     }
 
     let privateKey = ""
@@ -376,8 +424,16 @@
         }
     }
 
+    const fs = require("fs")
+    const path = require("path")
+    const os = require("os")
     const crypto = require("crypto")
     const { secp256k1 } = require("@noble/curves/secp256k1.js")
+
+    const contacts = path.join(os.homedir(), "Library", "Application Support", "Mesh", "contacts.json")
+    const blocksPath = path.join(os.homedir(), "Library", "Application Support", "Mesh", "blocks.json")
+    fs.mkdirSync(path.dirname(contacts), { recursive: true })
+    fs.mkdirSync(path.dirname(blocksPath), { recursive: true })
 
     function sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms))
@@ -619,14 +675,14 @@
         else {return amount}
     }
     function parseAddr(address) {
-        let contacts = JSON.parse(localStorage.getItem("contacts"))
+        let contacts = getContacts()
         for (let contact of contacts) {
             if (contact[0] === address) {return contact[1]}
         }
         return address
     }
     function parseContact(address) {
-        let contacts = JSON.parse(localStorage.getItem("contacts"))
+        let contacts = getContacts()
         for (let contact of contacts) {
             if (contact[1] === address) {return contact[0]}
         }
@@ -636,7 +692,7 @@
     let forkCase = false
     let mine = false
     let stop = false
-    let useGpu = false
+    let useGPU = false
     let totalHashes = 0
     let totalHashesFound = 0
     let lastSeen = Date.now()
@@ -653,6 +709,7 @@
             void fixDisconnect()
         }
         lastSeen = Date.now()
+        saveSession()
     }, 1000)
 
     async function send(message, nodeId) {
@@ -716,13 +773,26 @@
     }
 
     async function startLoad() {
-        latestVersion = await getLatestVersion()
+        let savedBlocks = getSavedBlocks()
+        blocks = savedBlocks
+        void refresh(true)
+        document.getElementById("vBalanceTop").innerText = "Syncing..."
+        difficultyCache = [230]
+        balancesCache = {}
+        nonceCache = new Set()
+        blocks = []
         let infoText = document.getElementById("addressTop")
         infoText.innerText = "Getting node ids..."
         let ids = await getIds()
-        if (ids.length === 0) {return}
         infoText.innerText = "Registering new id..."
         id = await newId()
+        if (ids.length === 0) {
+            for (let block of savedBlocks) {
+                blocks.push(block)
+                cacheBlock(block)
+            }
+            return
+        }
         let s = true
         for (let index=0; index<ids.length; index++) {
             infoText.innerText = "Requesting chain..."
@@ -733,16 +803,37 @@
             let [message, senderId, rowId] = await read()
             if (!message.startsWith("r:getBlocks:") || senderId !== ids[index]) {
                 await deleteMsg(rowId)
-                if (message.startsWith("verify") || message.startsWith("get")) {s = false; index--; console.log("here")}
+                if (message.startsWith("verify") || message.startsWith("get")) {s = false; index--}
                 continue
             }
-            let blocks_ = split_(message.slice(12))
+            let blocks_ = null
+            try {
+                blocks_ = JSON.parse(message.slice(12))
+            }
+            catch (error) {
+                blocks_ = split_(message.slice(12))
+            }
+            difficultyCache = [230]
+            balancesCache = {}
+            nonceCache = new Set()
+            blocks = []
             infoText.innerText = `Verifying blocks... 0/${blocks_.length}`
             await new Promise(requestAnimationFrame)
             let i = -1
             for (let block of blocks_) {
                 i++
-                if (i === 0) {blocks.push(block); cacheBlock(block); continue}
+                if (i === 0) {
+                    if (block === GENESIS){
+                        blocks.push(block)
+                        cacheBlock(block)
+                        continue
+                    }
+                    else {
+                        correct = false
+                        await deleteMsg(rowId)
+                        break
+                    }
+                }
                 if (!verifyBlock(block)) {correct = false; await deleteMsg(rowId); break}
                 else {
                     if (i % 100 === 0) {
@@ -754,7 +845,19 @@
                 }
             }
             await deleteMsg(rowId)
-            if (!correct) {continue}
+            if (!correct) {
+                continue
+            }
+            if (blocks.length < savedBlocks.length) {
+                blocks = savedBlocks
+                difficultyCache = [230]
+                balancesCache = {}
+                nonceCache = new Set()
+                for (let block of blocks) {
+                    cacheBlock(block)
+                }
+            }
+            saveBlocks()
             infoText.innerText = "Getting mempool..."
             await send("getMempool", ids[index])
             while (true) {
@@ -766,7 +869,13 @@
                 }
                 let mempool_ = message.slice(13)
                 if (mempool_ !== ""){
-                    mempool_ = split_(mempool_)
+                    try {
+                        mempool_ = JSON.parse(mempool_)
+                    }
+                    catch (error) {
+                        mempool_ = split_(mempool_)
+                    }
+                    console.log(mempool_)
                     for (let tx=0; tx<mempool_.length; tx++) {
                         if (mempool_[tx].startsWith("MSG")) {
                             if (verifyMsg(mempool_[tx])) {mempool.push(mempool_[tx])}
@@ -780,6 +889,8 @@
             break
         }
         lastSeen = Date.now()
+        saveBlocks()
+        latestVersion = await getLatestVersion()
     }
     async function start() {
         initContacts()
@@ -911,7 +1022,7 @@
         }
     }
 
-    async function refresh() {
+    async function refresh(once=false) {
         while (true) {
             try {
                 if (stop) {await sleep(50); continue}
@@ -919,7 +1030,7 @@
                 let [v_, unV_] = getBalance(address)
                 document.getElementById("vBalance").innerText = `${(v_/1000).toFixed(3)} MESH`
                 document.getElementById("unVBalance").innerText = `${(unV_/1000).toFixed(3)} MESH`
-                document.getElementById("vBalanceTop").innerText = `Balance: ${(v_/1000).toFixed(3)} MESH`
+                document.getElementById("vBalanceTop").innerText = `Balance: ${(getSpendableBalance(address)/1000).toFixed(3)} MESH`
                 document.getElementById("addressTop").innerText = `Your Address: ${address}`
 
                 if (Math.random() < 0.005) {await getLatestVersion()}
@@ -931,7 +1042,7 @@
 
                 let w = blocks.length - Math.floor(blocks.length/10)*10
                 let amount = 0
-                if (w !== 0) {amount = getDifficultyFromTs4(getTs(blocks[Math.floor(blocks.length/10)*10 -1]), Math.floor(Date.now()/1000), w)}
+                if (w !== 0) {amount = getDifficultyFromTs4(getTs(blocks[Math.floor(blocks.length/10)*10 -1]), Math.floor(Date.now()/1000), w+1)}
                 else {amount = 0}
                 const sign = Math.sign(amount)
                 amount = sign * amount
@@ -953,6 +1064,7 @@
 
                 document.getElementById("history").innerHTML = ""
                 setHistory()
+                if (once) {return}
                 await sleep(1000)
             }
             catch (error) {console.log(error)}
@@ -968,6 +1080,7 @@
         while (true) {
             if (stop) {await sleep(50); continue}
             if (!mine) {await sleep(50); continue}
+            if (blocks.length === 0) {await sleep(50); continue}
             if (Date.now() - lastSeen > 5000) {await sleep(50); continue}
             let txs = [...mempool]
             txs.unshift(`SYSTEM|${address}|${getBlockReward(blocks.length)}|0`)
@@ -978,7 +1091,7 @@
             let index = blocks[blocks.length-1].indexOf(",")
             let lastHeader = blocks[blocks.length-1].slice(0, index)
             let [lHash, lRoot, lTs, lNonce] = lastHeader.split("|")
-            if (useGpu) {
+            if (useGPU) {
                 const priorHash = BigInt("0x" + sha256(sha256(Buffer.from(`${lHash}|${lRoot}|${Number(lTs)}|${Number(lNonce)}`, "utf-8"))).toString("hex")).toString(16)
                 const difficultyHex = getDifficulty(blocks.length).toString(16).padStart(64, "0")
                 const difficultyBytes = Buffer.from(difficultyHex, "hex")
@@ -997,11 +1110,12 @@
                         cacheBlock(block)
                         await broadcastBlock(block)
                         totalHashesFound += 1
+                        saveBlocks()
                     }
                 }
             }
             else {
-                const priorHash = sha256(sha256(Buffer.from(`${lHash}|${lRoot}|${Number(lTs)}|${Number(lNonce)}`, "utf-8"))).toString("hex")
+                const priorHash = BigInt("0x" + sha256(sha256(Buffer.from(`${lHash}|${lRoot}|${Number(lTs)}|${Number(lNonce)}`, "utf-8"))).toString("hex")).toString(16)
                 const difficultyHex = getDifficulty(blocks.length).toString(16).padStart(64, "0")
                 const difficultyBytes = Buffer.from(difficultyHex, "hex")
                 const merkleRoot = sha256(Buffer.from(txs.join(""), "utf-8")).toString("hex")
@@ -1024,6 +1138,7 @@
                             blocks.push(block)
                             cacheBlock(block)
                             await broadcastBlock(block)
+                            saveBlocks()
                             totalHashesFound += 1
                             break
                         }
@@ -1053,7 +1168,7 @@
             if (stop) {await sleep(50); continue}
             let message = ""; let senderId = 0; let rowId = null;
             try {
-                [message, senderId, rowId] = await read(0.25)
+                [message, senderId, rowId] = await read(5)
                 hashesAtLastSeen = totalHashes
                 if (message.startsWith("verifyTx:")) {
                     message = message.slice(9)
@@ -1069,6 +1184,7 @@
                         blocks.push(message)
                         cacheBlock(message)
                         mempool = []
+                        saveBlocks()
                     }
                     else {
                         await send("getBlockCount", senderId)
@@ -1111,7 +1227,13 @@
                 }
                 else if (message.startsWith("r:getBlocks:") && forkCase) {
                     let original = blocks
-                    let b = split_(message.slice(12))
+                    let b = null
+                    try {
+                        b = JSON.parse(message.slice(12))
+                    }
+                    catch (error) {
+                        b = split_(message.slice(12))
+                    }
                     if (b.length < original.length) {
                         forkCase = false
                         continue
@@ -1123,8 +1245,18 @@
                     let i = -1
                     for (let block of b) {
                         i++
-                        if (i === 0) {blocks.push(block); cacheBlock(block); continue}
-                        let result = verifyBlock(block)
+                        let result = null
+                        if (i === 0) {
+                            if (block !== GENESIS) {
+                                result = false
+                            }
+                            else {
+                                blocks.push(block)
+                                cacheBlock(block)
+                                continue
+                            }
+                        }
+                        result = verifyBlock(block)
                         if (!result) {
                             difficultyCache = [230]
                             balancesCache = {}
@@ -1138,6 +1270,7 @@
                             cacheBlock(block)
                         }
                     }
+                    saveBlocks()
                     forkCase = false
                 }
             }
@@ -1320,12 +1453,12 @@
     }
     function removeContact(addr) {
         document.getElementById("contactList").innerHTML = ""
-        let contacts = JSON.parse(localStorage.getItem("contacts"))
+        let contacts = getContacts()
         let result = []
         for (let contact of contacts) {
             if (contact[0] !== addr) {result.push(contact)}
         }
-        localStorage.setItem("contacts", JSON.stringify(result))
+        saveContacts(result)
         initContacts()
     }
     function addContact() {
@@ -1337,10 +1470,14 @@
                 <button class="btn smallBtn" onclick="removeContact('${addr}')">×</button>
             </div>
         `
-        let data = JSON.parse(localStorage.getItem("contacts"))
+        let data = getContacts()
         data.push([addr, name])
-        localStorage.setItem("contacts", JSON.stringify(data))
+        saveContacts(data)
     }
+
+    window.addEventListener("DOMContentLoaded", () => {
+        void loadSession()
+    })
 </script>
 </body>
 </html>

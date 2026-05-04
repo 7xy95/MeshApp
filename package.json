@@ -1,6 +1,6 @@
 {
   "name": "mesh",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "",
   "main": "main.js",
   "repository": {
@@ -22,7 +22,7 @@
     "@electron-forge/plugin-auto-unpack-natives": "^7.11.1",
     "@electron-forge/plugin-fuses": "^7.11.1",
     "@electron/fuses": "^1.8.0",
-    "electron": "latest"
+    "electron": "^41.4.0"
   },
   "dependencies": {
     "@noble/curves": "^2.0.1",
