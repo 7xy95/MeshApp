@@ -24,6 +24,16 @@
             display: flex;
             min-height: 0;
         }
+        .pages {
+            display: flex;
+            flex-direction: column;
+            width: 65px;
+        }
+        .pageIcon {
+            margin: 10px;
+            background-color: #151c23;
+            align-items: center;
+        }
         .logInPanel {
             font-family: monospace;
             display: flex;
@@ -43,7 +53,7 @@
         .panel {
             background-color: #151e29;
             border-radius: 3px;
-            font-size: 16px;
+            font-size: 14px;
             position: relative;
             padding: 15px;
             margin: 4px 0;
@@ -52,7 +62,7 @@
             margin: 8px 0;
         }
         .left {
-            width: 350px;
+            width: 320px;
             display: flex;
             flex-direction: column;
             height: 100%;
@@ -93,6 +103,9 @@
         .topBar {
             padding: 12px 16px 0 16px;
             box-sizing: border-box;
+            display: flex;
+            align-items: flex-start;
+            flex-direction: column;
         }
         .label {
             text-align: left;
@@ -219,9 +232,14 @@
     <div class="topBar">
         <p id="vBalanceTop" style="font-size: 24px; margin-top: -5px">Syncing...</p>
         <p id="addressTop" style="font-size: 16px; margin-top: -20px">This may take up to 20s...</p>
-        <hr>
+        <button class="btn" onclick="logOut()" style="font-size: 16px; margin-top: 0; background-color: #2b3853; position: absolute; top: 10px; right: 10px">Log Out</button>
+        <hr style="height: 2px; width: 100%">
     </div>
     <div class="page">
+        <div class="pages">
+            <button class="btn pageIcon" style="background-color: #0b1117"><svg style="margin: 0; padding: 0" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#d0d9e1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-house-icon lucide-house"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></button>
+            <button class="btn pageIcon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#d0d9e1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-text-search-icon lucide-text-search"><path d="M21 5H3"/><path d="M10 12H3"/><path d="M10 19H3"/><circle cx="17" cy="15" r="3"/><path d="m21 19-1.9-1.9"/></svg></button>
+        </div>
         <div class="left">
             <div class="panel">
                 <p>Balance</p>
@@ -235,8 +253,8 @@
                     <span class="value" id="unVBalance">0.000</span>
                 </p>
                 <div class="miningHeader" style="margin-top: 10px">
-                    <button class="btn" onclick="openTxPopup()" style="margin-top: 0; background-color: #2b3853">Send MESH</button>
-                    <button class="btn" onclick="openMsgPopup()" style="margin-top: 0; background-color: #2b3853">Send Msg (1 MESH)</button>
+                    <button class="btn" onclick="openTxPopup()" style="margin-top: 0; background-color: #2b3853; font-size: 12px">Send MESH</button>
+                    <button class="btn" onclick="openMsgPopup()" style="margin-top: 0; background-color: #2b3853; font-size: 12px">Send Msg (1 MESH)</button>
                 </div>
             </div>
             <div class="panel">
@@ -270,7 +288,7 @@
                 </div>
                 <label style="display: flex">
                     <p style="margin-right: 15px">Use GPU </p>
-                    <input type="checkbox" onchange="useGPU = this.checked" id="useGPUCheckbox">
+                    <input type="checkbox" onchange="useGPU = this.checked" id="useGPUCheckbox" style="border-radius: 0; border: none">
                 </label>
                 <hr>
                 <p class="info">
@@ -294,7 +312,7 @@
         <div class="right">
             <div class="panel">
                 <p>History</p>
-                <button class="btn" onclick="openContactPopup()" style="margin-top: 0; background-color: #2b3853">Manage Contacts</button>
+                <button class="btn" onclick="openContactPopup()" style="font-size: 16px; margin-top: 0; background-color: #2b3853; position: absolute; top: 10px; right: 10px">Manage Contacts</button>
                 <hr>
                 <div class="history" id="history"></div>
             </div>
@@ -303,11 +321,12 @@
 </div>
 <div class="popup" style="display: none" id="tx">
     <div class="popupBox">
+        <p style="font-size: 24px; margin-top: 20px; text-align: left" id="sendPopupTitle"></p>
         <button class="btn" onclick="closePopup()" style="font-size: 32px; margin-top: 0; background-color: #2b3853; position: absolute; top: 10px; right: 10px">×</button>
-<!--        <p id="popupTitle"></p>-->
-        <input class="input" id="addressInput" placeholder="Enter Receiver's Address..." style="margin-top: 100px; width: 300px">
-        <input class="input" id="dataInput" style="width: 300px">
-        <button class="btn" onclick="submitTx()" style="margin-top: 0; background-color: #2b3853">Send</button>
+        <input class="input" id="addressInput" placeholder="Enter Receiver's Address..." style="margin-top: 10px; width: 300px">
+        <input class="input" id="dataInput" style="width: 300px" oninput="setFeeText()">
+        <button class="btn" onclick="submitTx()" style="row-gap: 0; background-color: #2b3853">Send</button>
+        <p style="color: #ed4141; margin-top: 20px; font-size: 14px" id="sendError"></p>
     </div>
 </div>
 <div class="popup" style="display: none" id="contacts">
@@ -1022,6 +1041,7 @@
         }
     }
 
+    let noStart = false
     async function refresh(once=false) {
         while (true) {
             try {
@@ -1170,7 +1190,10 @@
             try {
                 [message, senderId, rowId] = await read(5)
                 hashesAtLastSeen = totalHashes
-                if (message.startsWith("verifyTx:")) {
+                if (message.startsWith("getVersion")) {
+                    await send(`r:getVersion:${JSON.stringify(APP_VERSION)}`, senderId)
+                }
+                else if (message.startsWith("verifyTx:")) {
                     message = message.slice(9)
                     let result = ""
                     if (message.startsWith("MSG|")) {result = verifyMsg(message)}
@@ -1201,6 +1224,9 @@
                 }
                 else if (message.startsWith("getBlocks")) {
                     await send(`r:getBlocks:${JSON.stringify(blocks)}`, senderId)
+                }
+                else if (message.startsWith("getBlocksFrom:")) {
+                    await send(`r:getBlocksFrom:${JSON.stringify(blocks.slice(Number(message.slice(14))))}`, senderId)
                 }
                 else if (message.startsWith("getBlockCount")) {
                     await send(`r:getBlockCount:${blocks.length}`, senderId)
@@ -1288,22 +1314,39 @@
         seedToAddress(seed)
         document.getElementById("logInPanel").style.display = 'none'
         document.getElementById("mainPanel").style.display = 'flex'
-        await start()
+        if (!noStart) {await start()}
+        else {await refresh(true)}
+    }
+    async function logOut() {
+        document.getElementById("logInPanel").style.display = 'flex'
+        document.getElementById("mainPanel").style.display = 'none'
+        noStart = true
+        document.getElementById("walletSeedInput").value = ""
     }
 
     let popup = -1
     function openTxPopup() {
         document.getElementById("tx").style.display = "flex"
         document.getElementById("dataInput").placeholder = "Enter Amount..."
+        document.getElementById("sendPopupTitle").innerText = "Send MESH"
         popup = 0
     }
     function openMsgPopup() {
         document.getElementById("tx").style.display = "flex"
         document.getElementById("dataInput").placeholder = "Enter Message..."
+        document.getElementById("sendPopupTitle").innerText = "Send Msg"
         popup = 1
     }
     function openContactPopup() {
         document.getElementById("contacts").style.display = "flex"
+    }
+    function setFeeText() {
+        if (popup === 0) {
+            let amount = document.getElementById("dataInput").value
+            amount = Math.round(Number(amount)*1000)
+            amount = (amount - getFee(amount))/1000
+            document.getElementById("sendError").innerHTML = `<span style="color: #fdd54f">WARNING: Receiver will receive ${amount} MESH</span>`
+        }
     }
     async function submitTx() {
         async function broadcastTx(tx) {
@@ -1313,14 +1356,26 @@
             }
         }
         let toAddress = document.getElementById("addressInput").value
+        document.getElementById("addressInput").value = ""
         toAddress = parseContact(toAddress)
+        if (toAddress.length !== 40) {
+            document.getElementById("sendError").innerText = "ERROR: Invalid address"
+            return
+        }
         let bal = getSpendableBalance(address)
         if (popup === 0) {
-            closePopup()
             let amount = document.getElementById("dataInput").value
+            document.getElementById("dataInput").value = ""
             amount = Math.round(Number(amount)*1000)
-            if (bal < amount) {return}
-            if (amount <= 10) {return}
+            if (bal < amount) {
+                document.getElementById("sendError").innerText = "ERROR: Insufficient funds"
+                return
+            }
+            if (amount <= 10) {
+                document.getElementById("sendError").innerText = "ERROR: The minimum amount is 0.011"
+                return
+            }
+            closePopup()
             let tx = `${address}|${toAddress}|${amount}|${getNextNonce(address)}`
             let txHash = sha256(Buffer.from(tx, "utf-8"))
             let signature = secp256k1.sign(txHash, privateKey, { prehash: false, format: "der" })
@@ -1328,9 +1383,17 @@
             await broadcastTx(tx)
         }
         else if (popup === 1) {
-            closePopup()
-            if (bal < 1000) {return}
+            if (bal < 1000) {
+                document.getElementById("sendError").innerText = "ERROR: Insufficient funds"
+                return
+            }
             let message = document.getElementById("dataInput").value
+            document.getElementById("dataInput").value = ""
+            if (message.length > 150) {
+                document.getElementById("sendError").innerText = "ERROR: Message too long"
+                return
+            }
+            closePopup()
             message = Buffer.from(message, "utf-8").toString("hex")
             let tx = `MSG|${address}|${toAddress}|1000|${getNextNonce(address)}|${message}`
             let txHash = sha256(Buffer.from(tx, "utf-8"))
@@ -1341,6 +1404,9 @@
     }
     function closePopup() {
         document.getElementById("tx").style.display = "none"
+        document.getElementById("addressInput").value = ""
+        document.getElementById("dataInput").value = ""
+        document.getElementById("sendError").innerText = ""
         popup = -1
     }
     function closeHistoryPopup() {
