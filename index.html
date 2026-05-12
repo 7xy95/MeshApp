@@ -29,11 +29,6 @@
             flex-direction: column;
             width: 65px;
         }
-        .pageIcon {
-            margin: 10px;
-            background-color: #151c23;
-            align-items: center;
-        }
         .logInPanel {
             font-family: monospace;
             display: flex;
@@ -53,10 +48,14 @@
         .panel {
             background-color: #151e29;
             border-radius: 3px;
-            font-size: 14px;
+            font-size: 15px;
             position: relative;
             padding: 15px;
             margin: 4px 0;
+        }
+        .fullscreen {
+            margin: 12px;
+            width: 100%;
         }
         .panel p {
             margin: 8px 0;
@@ -92,13 +91,21 @@
             border: none;
             padding: 8px 18px;
             border-radius: 2px;
-            font-size: 14px;
+            font-size: 15px;
             cursor: pointer;
             transition: 0.2s;
         }
         .btn:hover {
             background-color: #0b1117;
             transform: scale(1.025);
+        }
+        .pageIcon {
+            margin: 10px 10px 0;
+            padding: 0;
+            background-color: #151c23;
+            align-items: center;
+            height: 50px;
+            width: 50px;
         }
         .topBar {
             padding: 12px 16px 0 16px;
@@ -116,6 +123,11 @@
         .info {
             display: grid;
             grid-template-columns: 1fr 1fr;
+            align-items: center;
+        }
+        .blockInfo {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
             align-items: center;
         }
         hr {
@@ -169,7 +181,7 @@
             margin-bottom: 6px;
         }
         .smallBtn {
-            font-size: 14px;
+            font-size: 15px;
             padding: 6px 6px;
             margin: 0 0 0 20px;
             background-color: #162633;
@@ -220,6 +232,12 @@
         .history::-webkit-scrollbar {
             display: none;
         }
+        .explorerPanel {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            overflow: hidden;
+        }
     </style>
 </head>
 <body>
@@ -235,13 +253,13 @@
         <button class="btn" onclick="logOut()" style="font-size: 16px; margin-top: 0; background-color: #2b3853; position: absolute; top: 10px; right: 10px">Log Out</button>
         <hr style="height: 2px; width: 100%">
     </div>
-    <div class="page">
+    <div id="page0" class="page">
         <div class="pages">
-            <button class="btn pageIcon" style="background-color: #0b1117"><svg style="margin: 0; padding: 0" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#d0d9e1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-house-icon lucide-house"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></button>
-            <button class="btn pageIcon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#d0d9e1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-text-search-icon lucide-text-search"><path d="M21 5H3"/><path d="M10 12H3"/><path d="M10 19H3"/><circle cx="17" cy="15" r="3"/><path d="m21 19-1.9-1.9"/></svg></button>
+            <button class="btn pageIcon" style="background-color: #0b1117" onclick="openPage(0)"><svg style="margin: 0; padding: 0" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#d0d9e1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-house-icon lucide-house"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></button>
+            <button class="btn pageIcon" onclick="openPage(1)"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#d0d9e1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-text-search-icon lucide-text-search"><path d="M21 5H3"/><path d="M10 12H3"/><path d="M10 19H3"/><circle cx="17" cy="15" r="3"/><path d="m21 19-1.9-1.9"/></svg></button>
         </div>
         <div class="left">
-            <div class="panel">
+            <div class="panel" style="flex: 0">
                 <p>Balance</p>
                 <hr>
                 <p class="info">
@@ -318,6 +336,48 @@
             </div>
         </div>
     </div>
+    <div id="page1" class="page" style="display: none">
+        <div class="pages">
+            <button class="btn pageIcon" onclick="openPage(0)"><svg style="margin: 0; padding: 0" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#d0d9e1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-house-icon lucide-house"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></button>
+            <button class="btn pageIcon" style="background-color: #0b1117" onclick="openPage(1)"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#d0d9e1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-text-search-icon lucide-text-search"><path d="M21 5H3"/><path d="M10 12H3"/><path d="M10 19H3"/><circle cx="17" cy="15" r="3"/><path d="m21 19-1.9-1.9"/></svg></button>
+        </div>
+        <div class="panel fullscreen explorerPanel">
+            <p style="font-size: 24px">Block Explorer</p>
+            <label style="display: flex; align-items: center; gap: 10px">
+                <span>Number of rows to show: </span>
+                <input class="input" id="maxTxDisplay" type="number" value="100" style="width: 70px">
+            </label>
+            <label style="display: none; align-items: center; gap: 10px; margin-top: 25px; margin-bottom: 25px">
+                <span>Specific address to search: </span>
+                <input class="input" id="searchingAddress" style="width: 250px">
+            </label>
+            <div style="display: none">
+                <p class="info">
+                    <span class="label">Verified Balance:</span>
+                    <span class="value" id="searchVerified"></span>
+                </p>
+                <p class="info">
+                    <span class="label">Unverified Balance:</span>
+                    <span class="value" id="searchUnverified"></span>
+                </p>
+            </div>
+            <label style="display: flex">
+                <p style="margin-right: 15px">Hide empty system-mined blocks </p>
+                <input checked type="checkbox" onchange="hideSystemMined = this.checked; void refresh(true)" style="border-radius: 0; border: none">
+            </label>
+            <div>
+                <p class="blockInfo">
+                    <span class="value">Block Index</span>
+                    <span class="value">Address From</span>
+                    <span class="value">Address To</span>
+                    <span class="value">Amount</span>
+                </p>
+                <hr>
+            </div>
+            <div id="explorerData" style="overflow-y: auto; min-height: 0">
+            </div>
+        </div>
+    </div>
 </div>
 <div class="popup" style="display: none" id="tx">
     <div class="popupBox">
@@ -341,8 +401,9 @@
 </div>
 <script src="gpuMiner.js"></script>
 <script>
-    const APP_VERSION = "v1.2.1"
+    const APP_VERSION = "v1.2.2"
     const GENESIS = "0000000000000000000000000000000000000000000000000000000000000000|935a313db940e4e3950a4e28bd0df6175aa03dcf29dfadc20efda2638c01b0e3|1774694716|13484619,[SYSTEM|0000000000000000000000000000000000000000|10000|0,SYSTEM|0a74dc9a74505d0d0c3467768d8bfee675c55617|4000|0,SYSTEM|0bf1d6199ab6273a9b320a4a891b040bc8858396|4000|0,SYSTEM|0d581e9c6d3276be90af893e24dc719a7cc72262|10000|0,SYSTEM|0dca1379707a0d60b103d958404d8a7a5eae880b|4000|0,SYSTEM|1a42c30482a50a469cec63bdb62158f0efaf97c4|4000|0,SYSTEM|2155e2425d076a2de830251920c9603791596af8|3000|0,SYSTEM|2442c616fd7c91a03c01eeb47e487555d180a984|1830000|0,SYSTEM|2d2e0aedd0850213ab0a71b2ff8e5ed47f4effe7|13000|0,SYSTEM|35ec9347fb781fe55b2995218bd544783231d86f|4000|0,SYSTEM|384be4f6f91c805e21b1bd32dbb68a73583dae56|25000|0,SYSTEM|3a01e4d633cee7fc9a34cb034b92608502c409bc|20000|0,SYSTEM|3ae637d7353bd8d7ccdd705fa020d958370b94b8|13000|0,SYSTEM|469706da92206dc2a45c9efa34b8809c8216bc34|4000|0,SYSTEM|4b525cf93bf84e322f69c59ad44ccfaa0fc7df75|4000|0,SYSTEM|50fd1abcb005e65f351caeec1eefcd73afe12d70|25000|0,SYSTEM|68e09039506c053f1b995d963ef897caf985f7ab|10000|0,SYSTEM|6d7a3f726f558f480e357ccbd1b8d8a80956eeb7|4000|0,SYSTEM|8288a9ac11d3e033a293659d5cbec991677c4c7c|15000|0,SYSTEM|8c92a4003a6b0950a7735d8c48ac9a1b8202eaac|104000|0,SYSTEM|906dbe3def97d809c27c4cfc9019a11ee0822dc7|19000|0,SYSTEM|98c24d2dd4058f8c9df1edb428f3ad0ac3be181a|921000|0,SYSTEM|a7ca91134370a73e687edb0388f348467262fb83|1000|0,SYSTEM|ad9eb264a8a69b2e994f8e99923fc8d447c912a4|4000|0,SYSTEM|adfbe0fc6884d51ad3ce054823493f900a33ed10|77000|0,SYSTEM|b195b7bb196f967ae57b1cccd0bc6bb0b7bb2961|4000|0,SYSTEM|b2f7f2016dacd0129ebcf7c1692964a0254ec525|3000|0,SYSTEM|bfe2a86f33e265d941caaf38f10aca4fd98e322f|4000|0,SYSTEM|c09cdc089d4100295711955f2457ef9fcc28030f|4000|0,SYSTEM|cb07dbe8de4a0a69c740b06c4b1f53fbeaf9e182|4000|0,SYSTEM|ccccd37dfe8ffcaa44787e07410c0bf29dcb4bfe|4000|0,SYSTEM|d7017b1d017ba24675769b4729219acb55bb43b9|4000|0,SYSTEM|e116e296e531bb0abbb2bad896e168d4cf998dbb|25000|0,SYSTEM|ed311963c66a41024a0c66b65d1e2674789c5224|4000|0,SYSTEM|f0f6f53682e90e5475a46fa589f57811830c8e79|100000|0,SYSTEM|f56ac4ea514c2f5f93b2d4300d980ef9492ae8e2|2000|0]"
+    const MAX_GET_REQUESTS = 10
     function initContacts() {
         if (getContacts() === null) {saveContacts([])}
         else {
@@ -707,15 +768,19 @@
         }
         return address
     }
+    function truncateAddress(address) {
+        if (address.length > 10) {return address.slice(0, 10) + "..."}
+        else {return address}
+    }
 
     let forkCase = false
     let mine = false
     let stop = false
     let useGPU = false
+    let hideSystemMined = true
     let totalHashes = 0
     let totalHashesFound = 0
     let lastSeen = Date.now()
-    let hashesAtLastSeen = 0
     let id = 0
     let latestVersion = ""
     let mempool = []
@@ -916,6 +981,7 @@
         await startLoad()
         void refresh()
         void check()
+        void checkIdRequests()
         void mineLoop()
     }
 
@@ -1042,6 +1108,8 @@
     }
 
     let noStart = false
+    let idRequestCount = {}
+    let blacklistedIds = []
     async function refresh(once=false) {
         while (true) {
             try {
@@ -1052,6 +1120,7 @@
                 document.getElementById("unVBalance").innerText = `${(unV_/1000).toFixed(3)} MESH`
                 document.getElementById("vBalanceTop").innerText = `Balance: ${(getSpendableBalance(address)/1000).toFixed(3)} MESH`
                 document.getElementById("addressTop").innerText = `Your Address: ${address}`
+                if (page === 1) {updateBlockData(); await sleep(5000); continue}
 
                 if (Math.random() < 0.005) {await getLatestVersion()}
                 if (latestVersion !== APP_VERSION) {document.getElementById("version").innerHTML = `<a href="https://github.com/7xy95/MeshApp/releases" style="color: dodgerblue">Download latest update</a>`}
@@ -1183,14 +1252,37 @@
         stop = false
         console.log("restarted...")
     }
+    async function checkIdRequests() {
+        while (true) {
+            try {
+                idRequestCount = {}
+                await sleep(30000)
+                blacklistedIds = []
+                for (let [nodeId, requestCount] of Object.entries(idRequestCount)) {
+                    if (requestCount >= MAX_GET_REQUESTS) {
+                        blacklistedIds.push(nodeId)
+                    }
+                }
+            }
+            catch (error) {}
+        }
+    }
     async function check() {
         while (true) {
             if (stop) {await sleep(50); continue}
             let message = ""; let senderId = 0; let rowId = null;
             try {
                 [message, senderId, rowId] = await read(5)
-                hashesAtLastSeen = totalHashes
-                if (message.startsWith("getVersion")) {
+                if (message.startsWith("get")) {
+                    if (idRequestCount[senderId] === undefined) {
+                        idRequestCount[senderId] = 1
+                    }
+                    else {idRequestCount[senderId] += 1}
+                }
+                if (idRequestCount[senderId] >= MAX_GET_REQUESTS || blacklistedIds.includes(senderId)) {
+                    continue
+                }
+                else if (message.startsWith("getVersion")) {
                     await send(`r:getVersion:${JSON.stringify(APP_VERSION)}`, senderId)
                 }
                 else if (message.startsWith("verifyTx:")) {
@@ -1539,6 +1631,95 @@
         let data = getContacts()
         data.push([addr, name])
         saveContacts(data)
+    }
+
+    let page = 0
+    function openPage(newPage) {
+        if (newPage === page) {return}
+        document.getElementById(`page${newPage}`).style.display = "flex"
+        document.getElementById(`page${page}`).style.display = "none"
+        page = newPage
+    }
+    function updateBlockData() {
+        function addItem(blockIndex, from, to, amount) {
+            let outcome = `<p class="blockInfo">`
+            if (typeof blockIndex === "number") {
+                outcome += `<span class="value">#${blockIndex}</span>`
+            }
+            else {outcome += `<span class="value">|</span>`}
+            if (from === "Block Mined") {
+                outcome += `<span class="value" style="color: #6774ff">${from}</span>`
+            }
+            else {outcome += `<span class="value" style="color: #899df1">${from}</span>`}
+            outcome += `<span class="value" style="color: #899df1">${to}</span>`
+            amount = (amount/1000).toFixed(3)
+            outcome += `<span class="value" style="color: #1dcd20">${amount}</span></p>`
+            document.getElementById("explorerData").innerHTML += outcome
+        }
+        document.getElementById("explorerData").innerHTML = ""
+        if (hideSystemMined) {
+            let rowCount = document.getElementById("maxTxDisplay").value
+            let totalInfo = 0
+            let i = blocks.length
+            while (totalInfo <= rowCount) {
+                i--
+                if (i < 1) {return}
+                let block = blocks[i]
+                let index = block.indexOf(",")
+                let txs = block.slice(index+1)
+                txs = split_(txs)
+                for (let tx of txs) {
+                    if (tx.startsWith("SYSTEM|8943e2763da16d5da9276b5ed900a78ff6ad9cfa|")) {
+                        if (txs.length === 1) {break}
+                    }
+                    if (tx.startsWith("SYSTEM|")) {
+                        tx = tx.split("|")
+                        tx[1] = parseAddr(tx[1])
+                        addItem(i+1, "Block Mined", truncateAddress(tx[1]), Number(tx[2]) + getMinerRewards(txs))
+                        totalInfo += 1
+                    }
+                    else if (!tx.startsWith("MSG|")) {
+                        tx = tx.split("|")
+                        tx[1] = parseAddr(tx[1])
+                        tx[0] = parseAddr(tx[0])
+                        let amount = Number(tx[2])
+                        addItem("", truncateAddress(tx[0]), truncateAddress(tx[1]), amount - getFee(amount))
+                        totalInfo += 1
+                    }
+                }
+            }
+        }
+        else {
+            let rowCount = document.getElementById("maxTxDisplay").value
+            let totalInfo = 0
+            let i = blocks.length
+            while (totalInfo <= rowCount) {
+                i--
+                if (i < 1) {
+                    return
+                }
+                let block = blocks[i]
+                let index = block.indexOf(",")
+                let txs = block.slice(index + 1)
+                txs = split_(txs)
+                for (let tx of txs) {
+                    if (tx.startsWith("SYSTEM|")) {
+                        tx = tx.split("|")
+                        tx[1] = parseAddr(tx[1])
+                        addItem(i + 1, "Block Mined", truncateAddress(tx[1]), Number(tx[2]) + getMinerRewards(txs))
+                        totalInfo += 1
+                    }
+                    else if (!tx.startsWith("MSG|")) {
+                        tx = tx.split("|")
+                        tx[1] = parseAddr(tx[1])
+                        tx[0] = parseAddr(tx[0])
+                        let amount = Number(tx[2])
+                        addItem("", truncateAddress(tx[0]), truncateAddress(tx[1]), amount - getFee(amount))
+                        totalInfo += 1
+                    }
+                }
+            }
+        }
     }
 
     window.addEventListener("DOMContentLoaded", () => {
