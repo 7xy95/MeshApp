@@ -111,7 +111,7 @@ function setHistory() {
             if (tx.startsWith("SYSTEM|")) {
                 if (b !== 0) {
                     let parts = tx.split("|")
-                    if (parts[1] === address) {addHistoryElement("mined", i, (getBlockReward(b)+getMinerRewards(txs))/1000); t++}
+                    if (parts[1] === address) {addHistoryElement("mined", i, (getBlockReward(b)+getMinerRewards(txs))/1000, "", "", block); t++}
                 }
                 continue
             }
@@ -120,20 +120,25 @@ function setHistory() {
                 let [, from, to, , , messageHex] = tx.split("|")
                 let bytes = Uint8Array.from(Buffer.from(messageHex, "hex"))
                 let messageText = new TextDecoder("utf-8").decode(bytes)
-                if (from === address) {addHistoryElement("msg", i, -1, parseAddr(to)); t++}
-                if (to === address) {addHistoryElement("msg", i, 0, parseAddr(from), messageText); t++}
+                if (from === address) {addHistoryElement("msg", i, -1, parseAddr(to), "", block); t++}
+                if (to === address) {addHistoryElement("msg", i, 0, parseAddr(from), messageText, block); t++}
                 continue
             }
             let [from, to, amount,] = tx.split("|")
-            if (from === address) {addHistoryElement("tx", i, -1*Number(amount)/1000, parseAddr(to)); t++}
-            if (to === address) {addHistoryElement("tx", i, (Number(amount)-getFee(Number(amount)))/1000, parseAddr(from)); t++}
+            if (from === address) {addHistoryElement("tx", i, -1*Number(amount)/1000, parseAddr(to), "", block); t++}
+            if (to === address) {addHistoryElement("tx", i, (Number(amount)-getFee(Number(amount)))/1000, parseAddr(from), "", block); t++}
         }
     }
 }
-function addHistoryElement(type, blocksAgo, change, addr="", msg="") {
+function addHistoryElement(type, blocksAgo, change, addr="", msg="", block="") {
     let hist = document.getElementById("history")
     let time = ""
-    if (blocksAgo >= 0) {time = `<p class="timeH">${blocksAgo+1} Blocks ago</p>`}
+    let ts = 0
+    if (block !== "") {ts = getTs(block)}
+    if (blocksAgo >= 0) {
+        if (ts === 0) {time = `<p class="timeH">${blocksAgo+1} blocks ago`}
+        else {time = `<p class="timeH">${blocksAgo+1} blocks ago (${formatTime(ts)})</p>`}
+    }
     else {time = `<p class="timeH" style="color: #c537de">Unverified</p>`}
     if (type === "tx") {
         if (change >= 0) {

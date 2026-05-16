@@ -32,15 +32,11 @@ async function refresh(once=false, checkVersion=true) {
 
             document.getElementById("blockReward").innerText = `${((getBlockReward(blocks.length)+getMinerRewards(mempool))/1000).toFixed(3)} MESH`
 
-            let miningToggled = document.getElementById("miningToggledL")
             let totalHashes_ = document.getElementById("totalHashes")
             let hashesFound = document.getElementById("hashesFound")
 
             document.getElementById("estMesh").innerText = getMeshPerMin(totalHashes - lastHashes).toFixed(3)
             lastHashes = totalHashes
-
-            if (!mine) {miningToggled.innerText = "Mining Disabled"}
-            else {miningToggled.innerText = "Mining Enabled"}
 
             totalHashes_.innerText = `${format(totalHashes, false)}`
             hashesFound.innerText = `${totalHashesFound}`
@@ -69,7 +65,7 @@ async function mineLoop() {
         let txs = [...mempool]
         txs.unshift(`SYSTEM|${address}|${getBlockReward(blocks.length)}|0`)
 
-        let nonce = Math.floor(Math.random()*(2**31))
+        let nonce = Math.floor(Math.random()*(2**32 - 2_000_000))
         let counter = 0
 
         let index = blocks[blocks.length-1].indexOf(",")

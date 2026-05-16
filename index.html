@@ -305,7 +305,11 @@
             <div class="panel" style="margin-bottom: 12px">
                 <div class="miningHeader">
                     <p style="margin: 0 15px 0 0">Mining</p>
-                    <button class="btn" onclick="mine = !mine" style="margin-top: 0; background-color: #2b3853">Toggle Mining</button>
+                    <button class="btn" onclick="
+                    mine = !mine
+                    if (mine) {document.getElementById('toggleMiningBtn').innerText = 'Stop Mining'}
+                    else {document.getElementById('toggleMiningBtn').innerText = 'Start Mining'}
+                    " style="margin-top: 0; background-color: #2b3853" id="toggleMiningBtn">Start Mining</button>
                 </div>
                 <label style="display: flex">
                     <p style="margin: 10px 15px 0 0">Use GPU </p>
@@ -316,10 +320,6 @@
                     <input value="0" id="throttleTime" class="input" style="position: relative; top: 2px; width: 75px">
                 </label>
                 <hr>
-                <p class="info">
-                    <span class="label" id="miningToggledL"></span>
-                    <span class="value" id="miningToggled"></span>
-                </p>
                 <p class="info">
                     <span class="label">Hash Attempts:</span>
                     <span class="value" id="totalHashes"></span>

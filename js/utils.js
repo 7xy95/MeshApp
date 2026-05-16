@@ -89,3 +89,21 @@ function format(number, hashrateUnits=true) {
     }
     return number
 }
+function formatTime(unixTs) {
+    let difference = Math.floor(Date.now()/1000) - unixTs
+    difference = Math.ceil(difference/60)
+    let years = difference/60/24/365
+    let days = (years - Math.floor(years))*365
+    let hours = (days - Math.floor(days))*24
+    let minutes = (hours - Math.floor(hours))*60
+    if (years >= 1) {
+        return `${Math.floor(years)}y${Math.floor(days)}d`
+    }
+    if (days >= 1) {
+        return `${Math.floor(days)}d${Math.floor(hours)}h`
+    }
+    if (hours >= 1) {
+        return `${Math.floor(hours)}h${Math.floor(minutes)}m`
+    }
+    return `${Math.floor(minutes)}m`
+}

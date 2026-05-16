@@ -1,5 +1,139 @@
 let gpuMinerState = null;
 
+const SHA256_INIT = new Uint32Array([
+    0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
+    0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
+]);
+
+const SHA256_K = new Uint32Array([
+    0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+    0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+    0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+    0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+    0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+    0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+    0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+    0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
+]);
+
+function rotr32(value, shift) {
+    return (value >>> shift) | (value << (32 - shift));
+}
+
+function sha256CompressState(hash, blockBytes, offset) {
+    const w = new Uint32Array(64);
+
+    for (let i = 0; i < 16; i++) {
+        const j = offset + i * 4;
+        w[i] = (
+            (blockBytes[j] << 24) |
+            (blockBytes[j + 1] << 16) |
+            (blockBytes[j + 2] << 8) |
+            blockBytes[j + 3]
+        ) >>> 0;
+    }
+
+    for (let i = 16; i < 64; i++) {
+        const s0 = (rotr32(w[i - 15], 7) ^ rotr32(w[i - 15], 18) ^ (w[i - 15] >>> 3)) >>> 0;
+        const s1 = (rotr32(w[i - 2], 17) ^ rotr32(w[i - 2], 19) ^ (w[i - 2] >>> 10)) >>> 0;
+        w[i] = (w[i - 16] + s0 + w[i - 7] + s1) >>> 0;
+    }
+
+    let a = hash[0];
+    let b = hash[1];
+    let c = hash[2];
+    let d = hash[3];
+    let e = hash[4];
+    let f = hash[5];
+    let g = hash[6];
+    let h = hash[7];
+
+    for (let i = 0; i < 64; i++) {
+        const s1 = (rotr32(e, 6) ^ rotr32(e, 11) ^ rotr32(e, 25)) >>> 0;
+        const ch = ((e & f) ^ ((~e) & g)) >>> 0;
+        const temp1 = (h + s1 + ch + SHA256_K[i] + w[i]) >>> 0;
+        const s0 = (rotr32(a, 2) ^ rotr32(a, 13) ^ rotr32(a, 22)) >>> 0;
+        const maj = ((a & b) ^ (a & c) ^ (b & c)) >>> 0;
+        const temp2 = (s0 + maj) >>> 0;
+
+        h = g;
+        g = f;
+        f = e;
+        e = (d + temp1) >>> 0;
+        d = c;
+        c = b;
+        b = a;
+        a = (temp1 + temp2) >>> 0;
+    }
+
+    hash[0] = (hash[0] + a) >>> 0;
+    hash[1] = (hash[1] + b) >>> 0;
+    hash[2] = (hash[2] + c) >>> 0;
+    hash[3] = (hash[3] + d) >>> 0;
+    hash[4] = (hash[4] + e) >>> 0;
+    hash[5] = (hash[5] + f) >>> 0;
+    hash[6] = (hash[6] + g) >>> 0;
+    hash[7] = (hash[7] + h) >>> 0;
+}
+
+function getNonceLength(startNonce) {
+    if (startNonce >= 1000000000) return 10;
+    if (startNonce >= 100000000) return 9;
+    if (startNonce >= 10000000) return 8;
+    if (startNonce >= 1000000) return 7;
+    if (startNonce >= 100000) return 6;
+    if (startNonce >= 10000) return 5;
+    if (startNonce >= 1000) return 4;
+    if (startNonce >= 100) return 3;
+    if (startNonce >= 10) return 2;
+    return 1;
+}
+
+function getNextNonceLengthBoundary(startNonce) {
+    const nonceLength = getNonceLength(startNonce);
+
+    if (nonceLength >= 10) {
+        return 0x100000000;
+    }
+
+    return 10 ** nonceLength;
+}
+
+function precomputePrefix(prefix) {
+    const prefixBytes = new Uint8Array(prefix.length);
+
+    for (let i = 0; i < prefix.length; i++) {
+        prefixBytes[i] = prefix.charCodeAt(i) & 255;
+    }
+
+    const fullPrefixBlocks = Math.floor(prefixBytes.length / 64);
+    const hash = new Uint32Array(SHA256_INIT);
+
+    for (let i = 0; i < fullPrefixBlocks; i++) {
+        sha256CompressState(hash, prefixBytes, i * 64);
+    }
+
+    const tailStart = fullPrefixBlocks * 64;
+    const tailLen = prefixBytes.length - tailStart;
+
+    if (tailLen > 128) {
+        throw new Error("GPU miner prefix tail is too long");
+    }
+
+    const prefixTail = new Uint32Array(128);
+
+    for (let i = 0; i < tailLen; i++) {
+        prefixTail[i] = prefixBytes[tailStart + i];
+    }
+
+    return {
+        prefixLen: prefixBytes.length,
+        prefixTailLen: tailLen,
+        initialHash: hash,
+        prefixTail
+    };
+}
+
 async function initGpuMiner(maxAttempts = 2_000_000) {
     if (gpuMinerState) return gpuMinerState;
 
@@ -20,11 +154,16 @@ async function initGpuMiner(maxAttempts = 2_000_000) {
     const shaderCode = `
 struct InputData {
     prefixLen: u32,
+    prefixTailLen: u32,
     startNonce: u32,
     attempts: u32,
-    _pad: u32,
+    nonceLen: u32,
+    _pad0: u32,
+    _pad1: u32,
+    _pad2: u32,
+    initialHash: array<u32, 8>,
     targetBytes: array<u32, 32>,
-    prefix: array<u32, 256>,
+    prefixTail: array<u32, 128>,
 };
 
 struct ResultData {
@@ -46,6 +185,11 @@ const K: array<u32, 64> = array<u32, 64>(
     0x748f82eeu,0x78a5636fu,0x84c87814u,0x8cc70208u,0x90befffau,0xa4506cebu,0xbef9a3f7u,0xc67178f2u
 );
 
+const POW10: array<u32, 10> = array<u32, 10>(
+    1u, 10u, 100u, 1000u, 10000u,
+    100000u, 1000000u, 10000000u, 100000000u, 1000000000u
+);
+
 fn rotr(x: u32, n: u32) -> u32 { return (x >> n) | (x << (32u - n)); }
 fn ch(x: u32, y: u32, z: u32) -> u32 { return (x & y) ^ ((~x) & z); }
 fn maj(x: u32, y: u32, z: u32) -> u32 { return (x & y) ^ (x & z) ^ (y & z); }
@@ -54,42 +198,32 @@ fn bs1(x: u32) -> u32 { return rotr(x, 6u) ^ rotr(x, 11u) ^ rotr(x, 25u); }
 fn ss0(x: u32) -> u32 { return rotr(x, 7u) ^ rotr(x, 18u) ^ (x >> 3u); }
 fn ss1(x: u32) -> u32 { return rotr(x, 17u) ^ rotr(x, 19u) ^ (x >> 10u); }
 
-fn nonceLen(nonce: u32) -> u32 {
-    if (nonce >= 1000000000u) { return 10u; }
-    if (nonce >= 100000000u) { return 9u; }
-    if (nonce >= 10000000u) { return 8u; }
-    if (nonce >= 1000000u) { return 7u; }
-    if (nonce >= 100000u) { return 6u; }
-    if (nonce >= 10000u) { return 5u; }
-    if (nonce >= 1000u) { return 4u; }
-    if (nonce >= 100u) { return 3u; }
-    if (nonce >= 10u) { return 2u; }
-    return 1u;
-}
-
-fn pow10(exp: u32) -> u32 {
-    var r = 1u;
-    for (var i = 0u; i < exp; i = i + 1u) { r = r * 10u; }
-    return r;
-}
-
-fn nonceByte(nonce: u32, index: u32, len: u32) -> u32 {
-    let divisor = pow10(len - index - 1u);
+fn nonceByte(nonce: u32, index: u32) -> u32 {
+    let divisor = POW10[inputData.nonceLen - index - 1u];
     return 48u + ((nonce / divisor) % 10u);
 }
 
-fn messageByte(index: u32, totalLen: u32, paddedLen: u32, nonce: u32, nLen: u32) -> u32 {
-    if (index < totalLen) {
-        if (index < inputData.prefixLen) { return inputData.prefix[index] & 255u; }
-        return nonceByte(nonce, index - inputData.prefixLen, nLen);
+fn remainingMessageByte(index: u32, remainingTotalLen: u32, paddedRemainingLen: u32, totalMessageLen: u32, nonce: u32) -> u32 {
+    if (index < remainingTotalLen) {
+        if (index < inputData.prefixTailLen) {
+            return inputData.prefixTail[index] & 255u;
+        }
+
+        return nonceByte(nonce, index - inputData.prefixTailLen);
     }
 
-    if (index == totalLen) { return 0x80u; }
+    if (index == remainingTotalLen) {
+        return 0x80u;
+    }
 
-    if (index >= paddedLen - 8u) {
-        let bitLen = totalLen * 8u;
-        let shiftIndex = paddedLen - 1u - index;
-        if (shiftIndex >= 4u) { return 0u; }
+    if (index >= paddedRemainingLen - 8u) {
+        let bitLen = totalMessageLen * 8u;
+        let shiftIndex = paddedRemainingLen - 1u - index;
+
+        if (shiftIndex >= 4u) {
+            return 0u;
+        }
+
         return (bitLen >> (shiftIndex * 8u)) & 255u;
     }
 
@@ -130,25 +264,22 @@ fn compress(hashPointer: ptr<function, array<u32, 8>>, wInput: ptr<function, arr
 }
 
 fn sha256Header(nonce: u32) -> array<u32, 8> {
-    var hash = array<u32, 8>(
-        0x6a09e667u,0xbb67ae85u,0x3c6ef372u,0xa54ff53au,
-        0x510e527fu,0x9b05688cu,0x1f83d9abu,0x5be0cd19u
-    );
+    var hash = inputData.initialHash;
 
-    let nLen = nonceLen(nonce);
-    let totalLen = inputData.prefixLen + nLen;
-    let paddedLen = ((totalLen + 9u + 63u) / 64u) * 64u;
-    let blockCount = paddedLen / 64u;
+    let totalMessageLen = inputData.prefixLen + inputData.nonceLen;
+    let remainingTotalLen = inputData.prefixTailLen + inputData.nonceLen;
+    let paddedRemainingLen = ((remainingTotalLen + 9u + 63u) / 64u) * 64u;
+    let blockCount = paddedRemainingLen / 64u;
 
     for (var blockIndex = 0u; blockIndex < blockCount; blockIndex = blockIndex + 1u) {
         var w = array<u32, 64>();
 
         for (var i = 0u; i < 16u; i = i + 1u) {
             let base = blockIndex * 64u + i * 4u;
-            let b0 = messageByte(base, totalLen, paddedLen, nonce, nLen);
-            let b1 = messageByte(base + 1u, totalLen, paddedLen, nonce, nLen);
-            let b2 = messageByte(base + 2u, totalLen, paddedLen, nonce, nLen);
-            let b3 = messageByte(base + 3u, totalLen, paddedLen, nonce, nLen);
+            let b0 = remainingMessageByte(base, remainingTotalLen, paddedRemainingLen, totalMessageLen, nonce);
+            let b1 = remainingMessageByte(base + 1u, remainingTotalLen, paddedRemainingLen, totalMessageLen, nonce);
+            let b2 = remainingMessageByte(base + 2u, remainingTotalLen, paddedRemainingLen, totalMessageLen, nonce);
+            let b3 = remainingMessageByte(base + 3u, remainingTotalLen, paddedRemainingLen, totalMessageLen, nonce);
             w[i] = (b0 << 24u) | (b1 << 16u) | (b2 << 8u) | b3;
         }
 
@@ -207,6 +338,7 @@ fn hashPassesTarget(hash: array<u32, 8>) -> bool {
         if (h < t) { return true; }
         if (h > t) { return false; }
     }
+
     return true;
 }
 
@@ -241,7 +373,7 @@ fn main(@builtin(global_invocation_id) globalId: vec3<u32>) {
         compute: { module: shaderModule, entryPoint: "main" }
     });
 
-    const inputBufferSize = (4 + 32 + 256) * 4;
+    const inputBufferSize = (8 + 8 + 32 + 128) * 4;
 
     const inputBuffer = device.createBuffer({
         size: inputBufferSize,
@@ -279,30 +411,41 @@ fn main(@builtin(global_invocation_id) globalId: vec3<u32>) {
     return gpuMinerState;
 }
 
-function prefixToU32(text) {
-    const arr = new Uint32Array(256);
-    for (let i = 0; i < text.length; i++) arr[i] = text.charCodeAt(i) & 255;
-    return arr;
-}
-
 window.gpuHash = async function gpuHash(prefix, difficultyBytes, startNonce, attempts = 1_000_000) {
     const state = await initGpuMiner();
 
-    attempts = Math.min(Math.max(Math.floor(attempts), 1), state.maxAttempts);
     startNonce = startNonce >>> 0;
 
-    const prefixBytes = prefixToU32(prefix);
+    const nonceLength = getNonceLength(startNonce);
+    const nextBoundary = getNextNonceLengthBoundary(startNonce);
+    const maxAttemptsBeforeLengthChange = Math.max(1, nextBoundary - startNonce);
+
+    attempts = Math.min(
+        Math.max(Math.floor(attempts), 1),
+        state.maxAttempts,
+        maxAttemptsBeforeLengthChange
+    );
+
+    const prefixData = precomputePrefix(prefix);
     const targetBytes = new Uint32Array(32);
 
-    for (let i = 0; i < 32; i++) targetBytes[i] = difficultyBytes[i] ?? 0;
+    for (let i = 0; i < 32; i++) {
+        targetBytes[i] = difficultyBytes[i] ?? 0;
+    }
 
-    const inputU32 = new Uint32Array(4 + 32 + 256);
-    inputU32[0] = prefix.length;
-    inputU32[1] = startNonce;
-    inputU32[2] = attempts;
-    inputU32[3] = 0;
-    inputU32.set(targetBytes, 4);
-    inputU32.set(prefixBytes, 36);
+    const inputU32 = new Uint32Array(8 + 8 + 32 + 128);
+
+    inputU32[0] = prefixData.prefixLen;
+    inputU32[1] = prefixData.prefixTailLen;
+    inputU32[2] = startNonce;
+    inputU32[3] = attempts;
+    inputU32[4] = nonceLength;
+    inputU32[5] = 0;
+    inputU32[6] = 0;
+    inputU32[7] = 0;
+    inputU32.set(prefixData.initialHash, 8);
+    inputU32.set(targetBytes, 16);
+    inputU32.set(prefixData.prefixTail, 48);
 
     state.device.queue.writeBuffer(state.inputBuffer, 0, inputU32);
     state.device.queue.writeBuffer(state.resultBuffer, 0, new Uint32Array([0, 0]));
