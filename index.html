@@ -329,8 +329,8 @@
                     <span class="value" id="hashesFound"></span>
                 </p>
                 <p class="info">
-                    <span class="label"></span>
-                    <span class="value" id="estTimePerHash"></span>
+                    <span class="label">MESH/min:</span>
+                    <span class="value" id="estMesh"></span>
                 </p>
             </div>
         </div>
@@ -414,75 +414,9 @@
 <script src="js/storage.js"></script>
 <script src="js/networking.js"></script>
 <script src="js/loops.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/start.js"></script>
 <script>
-    function sleep(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms))
-    }
-
-    function sha256(data) {
-        return crypto.createHash("sha256").update(data).digest()
-    }
-    function hash160(data) {
-        return crypto.createHash("ripemd160").update(sha256(data)).digest()
-    }
-    function seedToAddress(seedText) {
-        privateKey = sha256(sha256(Buffer.from(String(seedText), "utf-8")))
-        publicKey = Buffer.from(secp256k1.getPublicKey(privateKey, true))
-        address = hash160(publicKey).toString("hex")
-    }
-    function split_(text) {
-        let start = Date.now()
-        text = text.trim()
-        let result = []
-        let current = ""
-        let nestedList = 0
-        const startIndex = text.indexOf("[")
-        text = text.slice(startIndex+1).replaceAll(" ", "").replaceAll("'", "").replaceAll('"', "")
-        for (let c=0; c<text.length; c++) {
-            let currentChar = text[c]
-            let nextChar = text[c+1]
-            if (currentChar === "," && nextChar === "[") {
-                nestedList++
-                current += currentChar
-                continue
-            }
-            if (currentChar === "," && nestedList === 0) {
-                result.push(current.trim())
-                current = ""
-                continue
-            }
-            if (currentChar === "]" && nestedList === 0) {
-                result.push(current.trim())
-                continue
-            }
-            if (currentChar === "]") {
-                current += currentChar
-                nestedList--
-                continue
-            }
-            current += currentChar
-        }
-        return result.filter(x => x !== "")
-    }
-    function parseAddr(address) {
-        let contacts = getContacts()
-        for (let contact of contacts) {
-            if (contact[0] === address) {return contact[1]}
-        }
-        return address
-    }
-    function parseContact(address) {
-        let contacts = getContacts()
-        for (let contact of contacts) {
-            if (contact[1] === address) {return contact[0]}
-        }
-        return address
-    }
-    function truncateAddress(address) {
-        if (address.length > 10) {return address.slice(0, 10) + "..."}
-        else {return address}
-    }
-
     setInterval(() => {
         if (Date.now() - lastSeen > 10000) {
             if (stop) {return}
@@ -492,126 +426,6 @@
         saveSession()
     }, 1000)
 
-    async function startLoad() {
-        let savedBlocks = getSavedBlocks()
-        blocks = savedBlocks
-        void refresh(true, false)
-        document.getElementById("vBalanceTop").innerText = "Syncing..."
-        difficultyCache = [230]
-        balancesCache = {}
-        nonceCache = new Set()
-        blocks = []
-        let infoText = document.getElementById("addressTop")
-        infoText.innerText = "Getting node ids..."
-        let ids = await getIds()
-        infoText.innerText = "Registering new id..."
-        id = await newId()
-        if (ids.length === 0) {
-            for (let block of savedBlocks) {
-                blocks.push(block)
-                cacheBlock(block)
-            }
-            return
-        }
-        let s = true
-        for (let index=0; index<ids.length; index++) {
-            infoText.innerText = "Requesting chain..."
-            let node = ids[index]
-            if (s) {await send("getBlocks", node)}
-            s = true
-            let correct = true
-            let [message, senderId, rowId] = await read()
-            if (!message.startsWith("r:getBlocks:") || senderId !== ids[index]) {
-                await deleteMsg(rowId)
-                if (message.startsWith("verify") || message.startsWith("get")) {s = false; index--}
-                continue
-            }
-            let blocks_ = null
-            try {
-                blocks_ = JSON.parse(message.slice(12))
-            }
-            catch (error) {
-                blocks_ = split_(message.slice(12))
-            }
-            difficultyCache = [230]
-            balancesCache = {}
-            nonceCache = new Set()
-            blocks = []
-            infoText.innerText = `Verifying blocks... 0/${blocks_.length}`
-            await new Promise(requestAnimationFrame)
-            let i = -1
-            for (let block of blocks_) {
-                i++
-                if (i === 0) {
-                    if (block === GENESIS){
-                        blocks.push(block)
-                        cacheBlock(block)
-                        continue
-                    }
-                    else {
-                        correct = false
-                        await deleteMsg(rowId)
-                        break
-                    }
-                }
-                if (!verifyBlock(block)) {correct = false; await deleteMsg(rowId); break}
-                else {
-                    if (i % 100 === 0) {
-                        infoText.innerText = `Verifying blocks... ${i+1}/${blocks_.length}`
-                        await new Promise(requestAnimationFrame)
-                    }
-                    blocks.push(block)
-                    cacheBlock(block)
-                }
-            }
-            await deleteMsg(rowId)
-            if (!correct) {
-                continue
-            }
-            if (blocks.length < savedBlocks.length) {
-                blocks = savedBlocks
-                difficultyCache = [230]
-                balancesCache = {}
-                nonceCache = new Set()
-                for (let block of blocks) {
-                    cacheBlock(block)
-                }
-            }
-            saveBlocks()
-            infoText.innerText = "Getting mempool..."
-            await send("getMempool", ids[index])
-            while (true) {
-                let [message, senderId, rowId] = await read()
-                console.log(message)
-                if (!message.startsWith("r:getMempool:") || senderId !== ids[index]) {
-                    await deleteMsg(rowId)
-                    continue
-                }
-                let mempool_ = message.slice(13)
-                if (mempool_ !== ""){
-                    try {
-                        mempool_ = JSON.parse(mempool_)
-                    }
-                    catch (error) {
-                        mempool_ = split_(mempool_)
-                    }
-                    console.log(mempool_)
-                    for (let tx=0; tx<mempool_.length; tx++) {
-                        if (mempool_[tx].startsWith("MSG")) {
-                            if (verifyMsg(mempool_[tx])) {mempool.push(mempool_[tx])}
-                        }
-                        else if (verifyTx(mempool_[tx])) {mempool.push(mempool_[tx])}
-                    }
-                    await deleteMsg(rowId)
-                }
-                break
-            }
-            break
-        }
-        lastSeen = Date.now()
-        saveBlocks()
-        latestVersion = await getLatestVersion()
-    }
     async function start() {
         initContacts()
         await startLoad()

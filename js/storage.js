@@ -46,6 +46,8 @@ function saveSession() {
     localStorage.setItem("address", address)
     localStorage.setItem("mine", JSON.stringify(mine))
     localStorage.setItem("useGPU", JSON.stringify(useGPU))
+    localStorage.setItem("totalHashes", JSON.stringify(totalHashes))
+    localStorage.setItem("totalHashesFound", JSON.stringify(totalHashesFound))
 }
 async function loadSession() {
     if (localStorage.getItem("privateKey") == null) {return}
@@ -54,6 +56,8 @@ async function loadSession() {
     address = localStorage.getItem("address")
     mine = JSON.parse(localStorage.getItem("mine"))
     useGPU = JSON.parse(localStorage.getItem("useGPU"))
+    totalHashes = JSON.parse(localStorage.getItem("totalHashes"))
+    totalHashesFound = JSON.parse(localStorage.getItem("totalHashesFound"))
     document.getElementById("logInPanel").style.display = "none"
     document.getElementById("mainPanel").style.display = "flex"
     document.getElementById("useGPUCheckbox").checked = useGPU
