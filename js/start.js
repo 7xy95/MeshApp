@@ -9,7 +9,7 @@ async function startLoad() {
         blocks = savedBlocks
     }
     let savedBlocks = getSavedBlocks()
-    const INDEX = savedBlocks - 1440
+    const INDEX = savedBlocks.length - 1440
     let infoText = document.getElementById("addressTop")
     infoText.innerText = "Getting node ids..."
     let ids = await getIds()
