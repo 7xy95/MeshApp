@@ -508,6 +508,14 @@
     window.addEventListener("unhandledrejection", () => {
         location.reload()
     })
+    window.addEventListener("beforeunload", () => {
+        fetch(url + "removeId", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({ id: id }),
+            keepalive: true
+        })
+    })
 </script>
 </body>
 </html>
