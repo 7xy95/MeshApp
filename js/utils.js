@@ -60,8 +60,8 @@ function parseContact(address) {
     }
     return address
 }
-function truncateAddress(address) {
-    if (address.length > 10) {return address.slice(0, 10) + "..."}
+function truncateAddress(address, a=10) {
+    if (address.length > a) {return address.slice(0, a) + "..."}
     else {return address}
 }
 function format(number, hashrateUnits=true) {
@@ -106,4 +106,26 @@ function formatTime(unixTs) {
         return `${Math.floor(hours)}h${Math.floor(minutes)}m`
     }
     return `${Math.floor(minutes)}m`
+}
+function parseTx(tx) {
+    tx = tx.split("||")[0]
+    if (tx.startsWith("MSG|")) {
+        let [, from, to, amount, nonce, msgHex] = tx.split("|")
+        return [{
+            "from": from,
+            "to": to,
+            "amount": amount,
+            "nonce": nonce,
+            "msgHex": msgHex
+        }, true]
+    }
+    else {
+        let [from, to, amount, nonce] = tx.split("|")
+        return [{
+            "from": from,
+            "to": to,
+            "amount": amount,
+            "nonce": nonce
+        }, false]
+    }
 }

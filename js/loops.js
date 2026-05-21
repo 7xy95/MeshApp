@@ -129,17 +129,3 @@ async function mineLoop() {
         }
     }
 }
-async function fixDisconnect() {
-    console.log(Date.now() - lastSeen)
-    stop = true
-    document.getElementById("vBalanceTop").innerText = "Reconnecting..."
-    document.getElementById("addressTop").innerText = "This may take up to 20s..."
-    difficultyCache = [230]
-    balancesCache = {}
-    nonceCache = new Set()
-    blocks = []
-    await startLoad()
-    lastSeen = Date.now()
-    stop = false
-    console.log("restarted...")
-}

@@ -61,7 +61,7 @@
             margin: 8px 0;
         }
         .left {
-            width: 320px;
+            width: 300px;
             display: flex;
             flex-direction: column;
             height: 100%;
@@ -172,6 +172,7 @@
             align-items: flex-start;
             gap: 10px;
             padding-left: 20px;
+            display: flex;
         }
         .contactItem {
             display: flex;
@@ -203,13 +204,27 @@
             min-height: 0;
         }
         .historyItem {
+            border: none;
+            background: none;
+            color: inherit;
+            font: inherit;
+            text-align: inherit;
+            width: 100%;
+            cursor: pointer;
+
             display: grid;
             grid-template-columns: auto 1fr auto;
             grid-template-rows: auto auto;
             column-gap: 4px;
             row-gap: 4px;
             align-items: center;
+            padding: 0;
             margin: 0 0 30px;
+        }
+        .historyItem:hover {
+            /*background-color: rgb(222 222 222 / 0.1);*/
+            /*padding: 15px;*/
+            /*margin: -15px -15px 15px;*/
         }
         .historyItem p {
             margin: 0;
@@ -321,11 +336,11 @@
                 </label>
                 <hr>
                 <p class="info">
-                    <span class="label">Hash Attempts:</span>
+                    <span class="label">Attempts:</span>
                     <span class="value" id="totalHashes"></span>
                 </p>
                 <p class="info">
-                    <span class="label">Hashes Found:</span>
+                    <span class="label">Found:</span>
                     <span class="value" id="hashesFound"></span>
                 </p>
                 <p class="info">
@@ -406,6 +421,44 @@
         <div class="contactList" id="contactList"></div>
     </div>
 </div>
+<div class="popup" style="display: none">
+    <div class="popupBox popupBoxLeft">
+        <p style="font-size: 24px; margin-top: 20px" id="txInfoTitle"></p>
+        <button class="btn" onclick="closeTxInfo()" style="font-size: 32px; margin-top: 0; background-color: #2b3853; position: absolute; top: 10px; right: 10px">×</button>
+        <div class="info">
+            <div class="label">Block Index:</div>
+            <div class="value" id="txInfoBlockIndexField"></div>
+        </div>
+        <div class="info">
+            <div class="label">From:</div>
+            <div class="value" id="txInfoFromField"></div>
+        </div>
+        <div class="info">
+            <div class="label">To:</div>
+            <div class="value" id="txInfoToField"></div>
+        </div>
+        <div class="info">
+            <div class="label">Amount:</div>
+            <div class="value" id="txInfoAmountField"></div>
+        </div>
+        <div class="info">
+            <div class="label">Fees To Miner:</div>
+            <div class="value" id="txInfoFeesField"></div>
+        </div>
+        <div class="info">
+            <div class="label">Confirmations:</div>
+            <div class="value" id="txInfoConfField"></div>
+        </div>
+        <div class="info">
+            <div class="label">Date:</div>
+            <div class="value" id="txInfoDateField"></div>
+        </div>
+        <div class="info">
+            <div class="label" id="txInfoExtraLabel"></div>
+            <div class="value" id="txInfoExtraField"></div>
+        </div>
+    </div>
+</div>
 <script src="gpuMiner.js"></script>
 <script src="js/globals.js"></script>
 <script src="js/verify.js"></script>
@@ -418,10 +471,7 @@
 <script src="js/start.js"></script>
 <script>
     setInterval(() => {
-        if (Date.now() - lastSeen > 10000) {
-            if (stop) {return}
-            void fixDisconnect()
-        }
+        if (Date.now() - lastSeen > 20000) { location.reload()}
         lastSeen = Date.now()
         saveSession()
     }, 1000)
@@ -451,6 +501,12 @@
 
     window.addEventListener("DOMContentLoaded", () => {
         void loadSession()
+    })
+    window.addEventListener("error", () => {
+        location.reload()
+    })
+    window.addEventListener("unhandledrejection", () => {
+        location.reload()
     })
 </script>
 </body>

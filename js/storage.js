@@ -48,6 +48,7 @@ function saveSession() {
     localStorage.setItem("useGPU", JSON.stringify(useGPU))
     localStorage.setItem("totalHashes", JSON.stringify(totalHashes))
     localStorage.setItem("totalHashesFound", JSON.stringify(totalHashesFound))
+    localStorage.setItem("throttle", JSON.stringify(document.getElementById("throttleTime").value))
 }
 async function loadSession() {
     if (localStorage.getItem("privateKey") == null) {return}
@@ -61,5 +62,6 @@ async function loadSession() {
     document.getElementById("logInPanel").style.display = "none"
     document.getElementById("mainPanel").style.display = "flex"
     document.getElementById("useGPUCheckbox").checked = useGPU
+    document.getElementById("throttleTime").value = JSON.parse(localStorage.getItem("throttle"))
     void start()
 }

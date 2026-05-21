@@ -107,11 +107,13 @@ function setHistory() {
         i++; b--
         let index = block.indexOf(",")
         let txs = split_(block.slice(index+1))
+        let txIndex = -1
         for (let tx of txs) {
+            txIndex++
             if (tx.startsWith("SYSTEM|")) {
                 if (b !== 0) {
                     let parts = tx.split("|")
-                    if (parts[1] === address) {addHistoryElement("mined", i, (getBlockReward(b)+getMinerRewards(txs))/1000, "", "", block); t++}
+                    if (parts[1] === address) {addHistoryElement("mined", i, (getBlockReward(b)+getMinerRewards(txs))/1000, "", "", block, txIndex); t++}
                 }
                 continue
             }
@@ -120,17 +122,17 @@ function setHistory() {
                 let [, from, to, , , messageHex] = tx.split("|")
                 let bytes = Uint8Array.from(Buffer.from(messageHex, "hex"))
                 let messageText = new TextDecoder("utf-8").decode(bytes)
-                if (from === address) {addHistoryElement("msg", i, -1, parseAddr(to), "", block); t++}
-                if (to === address) {addHistoryElement("msg", i, 0, parseAddr(from), messageText, block); t++}
+                if (from === address) {addHistoryElement("msg", i, -1, parseAddr(to), "", block, txIndex); t++}
+                if (to === address) {addHistoryElement("msg", i, 0, parseAddr(from), messageText, block, txIndex); t++}
                 continue
             }
             let [from, to, amount,] = tx.split("|")
-            if (from === address) {addHistoryElement("tx", i, -1*Number(amount)/1000, parseAddr(to), "", block); t++}
-            if (to === address) {addHistoryElement("tx", i, (Number(amount)-getFee(Number(amount)))/1000, parseAddr(from), "", block); t++}
+            if (from === address) {addHistoryElement("tx", i, -1*Number(amount)/1000, parseAddr(to), "", block, txIndex); t++}
+            if (to === address) {addHistoryElement("tx", i, (Number(amount)-getFee(Number(amount)))/1000, parseAddr(from), "", block, txIndex); t++}
         }
     }
 }
-function addHistoryElement(type, blocksAgo, change, addr="", msg="", block="") {
+function addHistoryElement(type, blocksAgo, change, addr="", msg="", block="", txIndex) {
     let hist = document.getElementById("history")
     let time = ""
     let ts = 0
@@ -139,61 +141,119 @@ function addHistoryElement(type, blocksAgo, change, addr="", msg="", block="") {
         if (ts === 0) {time = `<p class="timeH">${blocksAgo+1} blocks ago`}
         else {time = `<p class="timeH">${blocksAgo+1} blocks ago (${formatTime(ts)})</p>`}
     }
-    else {time = `<p class="timeH" style="color: #c537de">Unverified</p>`}
+    else {time = `<p class="timeH" style="color: #c537de">Unverified</p>`;}
     if (type === "tx") {
         if (change >= 0) {
             hist.innerHTML += `
-                <div class="historyItem">
+                <button onclick='openTxInfo(${blocksAgo}, ${txIndex})' class="historyItem">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1dcd20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-banknote-arrow-up-icon lucide-banknote-arrow-up iconH"><path d="M12 18H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5"/><path d="M18 12h.01"/><path d="M19 22v-6"/><path d="m22 19-3-3-3 3"/><path d="M6 12h.01"/><circle cx="12" cy="12" r="2"/></svg>
                     ${time}
                     <p class="changeH" style="color: #1dcd20">+${change.toFixed(3)}</p>
                     <p class="infoH">Received from <span style="color: #899df1">${addr}</span></p>
-                </div>
+                </button>
                 `
         }
         else {
             hist.innerHTML += `
-                <div class="historyItem">
+                <button onclick='openTxInfo(${blocksAgo}, ${txIndex})' class="historyItem">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ff4242" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-banknote-arrow-down-icon lucide-banknote-arrow-down iconH"><path d="M12 18H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5"/><path d="m16 19 3 3 3-3"/><path d="M18 12h.01"/><path d="M19 16v6"/><path d="M6 12h.01"/><circle cx="12" cy="12" r="2"/></svg>
                     ${time}
                     <p class="changeH" style="color: #ff4242">${change.toFixed(3)}</p>
                     <p class="infoH">Sent to <span style="color: #899df1">${addr}</p>
-                </div>
+                </button>
                 `
         }
     }
     else if (type === "msg") {
         if (change === 0) {
             hist.innerHTML += `
-                <div class="historyItem">
+                <button onclick='openTxInfo(${blocksAgo}, ${txIndex})' class="historyItem">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6196ea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-message-square-text-icon lucide-message-square-text iconH"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"/><path d="M7 11h10"/><path d="M7 15h6"/><path d="M7 7h8"/></svg>
                     ${time}
                     <p class="changeH" style="color: #899df1">Received</p>
                     <p class="infoH">From <span style="color: #899df1">${addr}: <span style="color: #6774ff">${msg}</p>
-                </div>
+                </button>
                 `
         }
         else {
             hist.innerHTML += `
-                <div class="historyItem">
+                <button onclick='openTxInfo(${blocksAgo}, ${txIndex})' class="historyItem">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6196ea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-message-square-text-icon lucide-message-square-text iconH"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"/><path d="M7 11h10"/><path d="M7 15h6"/><path d="M7 7h8"/></svg>
                     ${time}
                     <p class="changeH" style="color: #ff4242">-1.000</p>
                     <p class="infoH">Message sent to <span style="color: #899df1">${addr}</p>
-                </div>
+                </button>
                 `
         }
     }
     else {
         hist.innerHTML += `
-            <div class="historyItem">
+            <button onclick='openTxInfo(${blocksAgo}, ${txIndex})' class="historyItem">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6196ea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pickaxe-icon lucide-pickaxe iconH"><path d="m14 13-8.381 8.38a1 1 0 0 1-3.001-3L11 9.999"/><path d="M15.973 4.027A13 13 0 0 0 5.902 2.373c-1.398.342-1.092 2.158.277 2.601a19.9 19.9 0 0 1 5.822 3.024"/><path d="M16.001 11.999a19.9 19.9 0 0 1 3.024 5.824c.444 1.369 2.26 1.676 2.603.278A13 13 0 0 0 20 8.069"/><path d="M18.352 3.352a1.205 1.205 0 0 0-1.704 0l-5.296 5.296a1.205 1.205 0 0 0 0 1.704l2.296 2.296a1.205 1.205 0 0 0 1.704 0l5.296-5.296a1.205 1.205 0 0 0 0-1.704z"/></svg>
                 ${time}
                 <p class="changeH" style="color: #1dcd20">+${change.toFixed(3)}</p>
                 <p class="infoH">Block #${blocks.length - blocksAgo} mined</p>
-            </div>
+            </button>
             `
     }
+}
+function openTxInfo(blockIndex, txIndex) {
+    return
+    document.getElementById("txInfo").style.display = "flex"
+    let titleText = document.getElementById("txInfoTitle")
+    let blockIndexText = document.getElementById("txInfoBlockIndexField")
+    let fromText = document.getElementById("txInfoFromField")
+    let toText = document.getElementById("txInfoToField")
+    let amountText = document.getElementById("txInfoAmountField")
+    let feesText = document.getElementById("txInfoFeesField")
+    let confText = document.getElementById("txInfoConfField")
+    let dateText = document.getElementById("txInfoDateField")
+    let extraLabel = document.getElementById("txInfoExtraLabel")
+    let extraText = document.getElementById("txInfoExtraField")
+    extraLabel.innerText = ""
+
+    let txInfo = {}
+    let isMsg = false
+    let tx = ""
+    let block = ""
+    if (blockIndex === -1) {
+        tx = mempool[txIndex]
+    }
+    else {
+        block = blocks[blocks.length-blockIndex-1]
+        let txs = block.slice(block.indexOf(",") + 1)
+        txs = split_(txs)
+        tx = txs[txIndex]
+    }
+    [txInfo, isMsg] = parseTx(tx)
+
+    let fees = (getFee(txInfo.amount)/1000).toFixed(3)
+    txInfo.amount = (txInfo.amount/1000).toFixed(3)
+
+    fromText.innerText = txInfo.from
+    toText.innerText = txInfo.to
+    amountText.innerText = txInfo.amount
+    feesText.innerText = fees
+    if (isMsg) {
+        let bytes = Uint8Array.from(Buffer.from(txInfo.msgHex, "hex"))
+        let msg = new TextDecoder("utf-8").decode(bytes)
+        extraLabel.innerText = "Message Sent:"
+        extraText.innerText = msg
+    }
+    titleText.innerText = `Transaction`
+    if (blockIndex !== -1) {
+        blockIndexText.innerText = `#${blocks.length-blockIndex}`
+        confText.innerText = blockIndex+1
+        dateText.innerText = getTs(block)
+    }
+    else {
+        blockIndexText.innerText = `In mempool, not yet in block`
+        confText.innerText = "0"
+        dateText.innerText = (new Date(getTs(block)*1000)).toLocaleString()
+    }
+}
+function closeTxInfo() {
+    document.getElementById("txInfo").style.display = "none"
 }
 function removeContact(addr) {
     document.getElementById("contactList").innerHTML = ""

@@ -1,7 +1,7 @@
 async function send(message, nodeId) {
     while (true) {
         try {
-            console.log("sending")
+            console.log(`sending ${truncateAddress(message, 25)}`)
             await fetch(url + "sendMessage", {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
@@ -17,9 +17,14 @@ async function send(message, nodeId) {
     }
 }
 async function getLatestVersion() {
-    let response = await fetch("https://api.github.com/repos/7xy95/MeshApp/releases/latest")
-    response = await response.json()
-    return response.tag_name
+    while (true) {
+        try {
+            let response = await fetch("https://api.github.com/repos/7xy95/MeshApp/releases/latest")
+            response = await response.json()
+            return response.tag_name
+        }
+        catch (error) {}
+    }
 }
 async function deleteMsg(rowId) {
     try {
