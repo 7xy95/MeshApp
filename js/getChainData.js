@@ -71,7 +71,9 @@ function getSpendableBalance(address, ignoreTx="") {
 }
 function getBalance(address) {
     let vBalance = 0
+    let bIndex = -1
     for (let block of blocks) {
+        bIndex++
         let index = block.indexOf(",")
         block = block.slice(index+1)
         let txs = split_(block)
@@ -81,6 +83,8 @@ function getBalance(address) {
             if (tx.startsWith("SYSTEM|")) {
                 let parts = tx.split("|")
                 if (parts[1] === address) {
+                    // if (bIndex < C1) vBalance += Number(parts[2])
+                    // else vBalance += Number(parts[2])
                     vBalance += Number(parts[2])
                     if (i === 0) {vBalance += getMinerRewards(txs)}
                 }
@@ -133,13 +137,14 @@ function getDifficultyFromTs3(prevTs, nextTs) {
     diff = Math.max(Math.min(diff, 0.5), -0.5)
     return Math.round(diff*100)/100
 }
-function getDifficultyFromTs4(prevTs, nextTs, window=10) {
+function getDifficultyFromTs4(prevTs, nextTs, window=10, accurate=false) {
     const TARGET = 300
     let avg = (nextTs - prevTs)/window
     let diff = Math.log2(avg/TARGET)
     let diff_ = Math.max(Math.min(diff, 1), -1)
     if (Math.abs(diff_) === 1) {diff_ += (diff - diff_)/4}
-    return Math.round(diff_*100)/100
+    if (!accurate) {return Math.round(diff_*100)/100}
+    return diff_
 }
 function getDifficulty(blockIndex) {
     const bits = getDifficultyBits(blockIndex)

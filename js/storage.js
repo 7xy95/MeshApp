@@ -49,6 +49,7 @@ function saveSession() {
     localStorage.setItem("totalHashes", JSON.stringify(totalHashes))
     localStorage.setItem("totalHashesFound", JSON.stringify(totalHashesFound))
     localStorage.setItem("throttle", JSON.stringify(document.getElementById("throttleTime").value))
+    localStorage.setItem("minBattery", JSON.stringify(document.getElementById("minBattery").value))
 }
 async function loadSession() {
     if (localStorage.getItem("privateKey") == null) {return}
@@ -63,5 +64,10 @@ async function loadSession() {
     document.getElementById("mainPanel").style.display = "flex"
     document.getElementById("useGPUCheckbox").checked = useGPU
     document.getElementById("throttleTime").value = JSON.parse(localStorage.getItem("throttle"))
+    let savedMinBattery = JSON.parse(localStorage.getItem("minBattery"))
+    if (savedMinBattery === "") {
+        document.getElementById("minBattery").value = 25
+    }
+    else {document.getElementById("minBattery").value = savedMinBattery}
     void start()
 }

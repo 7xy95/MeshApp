@@ -16,8 +16,8 @@ async function refresh(once=false, checkVersion=true) {
             document.getElementById("addressTop").innerText = `Your Address: ${address}`
             if (page === 1) {updateBlockData(); await sleep(5000); continue}
 
-            if (Math.random() < 0.005) {await getLatestVersion()}
-            if (latestVersion !== APP_VERSION && checkVersion) {document.getElementById("version").innerHTML = `<a href="https://github.com/7xy95/MeshApp/releases" style="color: dodgerblue">Download latest update</a>`}
+            if (Math.random() < 0.005) {void getLatestVersion()}
+            if (latestVersion !== APP_VERSION && checkVersion && latestVersion !== undefined) {document.getElementById("version").innerHTML = `<a href="https://github.com/7xy95/MeshApp/releases" style="color: dodgerblue">${latestVersion} available</a>`}
             else {document.getElementById("version").innerText = APP_VERSION}
 
             document.getElementById("difficulty").innerText = `${format(2**(256-getDifficultyBits(blocks.length)))}`
@@ -25,7 +25,7 @@ async function refresh(once=false, checkVersion=true) {
 
             let w = blocks.length - Math.floor(blocks.length/10)*10
             let amount = 0
-            if (w !== 0) {amount = getDifficultyFromTs4(getTs(blocks[Math.floor(blocks.length/10)*10 -1]), Math.floor(Date.now()/1000), w+1)}
+            if (w !== 0) {amount = getDifficultyFromTs4(getTs(blocks[Math.floor(blocks.length/10)*10 -1]), Math.floor(Date.now()/1000), w+1, true)}
             else {amount = 0}
             if (w > 3) {document.getElementById("nextDiff").innerText = `${format(2**(256-(getDifficultyBits(blocks.length) + amount)))}`}
             else {document.getElementById("nextDiff").innerText = "-"}
@@ -53,79 +53,99 @@ async function mineLoop() {
     async function broadcastBlock(block) {
         let ids = await getIds()
         for (let i of ids) {
-            if (id !== i) {await send(`verifyBlock:${block}`, i)}
+            if (id !== i) {void send(`verifyBlock:${block}`, i)}
         }
     }
     while (true) {
-        await sleep(document.getElementById("throttleTime").value)
-        if (stop) {await sleep(50); continue}
-        if (!mine) {await sleep(50); continue}
-        if (blocks.length === 0) {await sleep(50); continue}
-        if (Date.now() - lastSeen > 5000) {await sleep(50); continue}
-        let txs = [...mempool]
-        txs.unshift(`SYSTEM|${address}|${getBlockReward(blocks.length)}|0`)
-
-        let nonce = Math.floor(Math.random()*(2**32 - 2_000_000))
-        let counter = 0
-
-        let index = blocks[blocks.length-1].indexOf(",")
-        let lastHeader = blocks[blocks.length-1].slice(0, index)
-        let [lHash, lRoot, lTs, lNonce] = lastHeader.split("|")
-        if (useGPU) {
-            const priorHash = BigInt("0x" + sha256(sha256(Buffer.from(`${lHash}|${lRoot}|${Number(lTs)}|${Number(lNonce)}`, "utf-8"))).toString("hex")).toString(16)
-            const difficultyHex = getDifficulty(blocks.length).toString(16).padStart(64, "0")
-            const difficultyBytes = Buffer.from(difficultyHex, "hex")
-            const merkleRoot = sha256(Buffer.from(txs.join(""), "utf-8")).toString("hex")
-            const ts = Math.floor(Date.now()/1000)
-            const prefix = `${priorHash}|${merkleRoot}|${ts}|`
-            const result = await gpuHash(prefix, difficultyBytes, nonce, 2_000_000)
-            totalHashes += result.attempts
-            if (result.found) {
-                const header = prefix + String(result.nonce)
-                const hash = sha256(sha256(Buffer.from(header, "utf-8")))
-                const block = `${header},${JSON.stringify(txs)}`
-                if (verifyBlock(block)) {
-                    mempool = []
-                    blocks.push(block)
-                    cacheBlock(block)
-                    await broadcastBlock(block)
-                    totalHashesFound += 1
-                    saveBlocks()
-                }
+        try {
+            await sleep(document.getElementById("throttleTime").value)
+            if (stop) {await sleep(50); continue}
+            if (!mine) {await sleep(50); continue}
+            if (blocks.length === 0) {await sleep(50); continue}
+            if (Date.now() - lastSeen > 5000) {await sleep(50); continue}
+            if (batteryLevel < document.getElementById("minBattery").value/100) {
+                document.getElementById("lowBatteryMining").innerText = "Low battery, mining disabled"
+                await sleep(250)
+                continue
             }
-        }
-        else {
-            const priorHash = BigInt("0x" + sha256(sha256(Buffer.from(`${lHash}|${lRoot}|${Number(lTs)}|${Number(lNonce)}`, "utf-8"))).toString("hex")).toString(16)
-            const difficultyHex = getDifficulty(blocks.length).toString(16).padStart(64, "0")
-            const difficultyBytes = Buffer.from(difficultyHex, "hex")
-            const merkleRoot = sha256(Buffer.from(txs.join(""), "utf-8")).toString("hex")
-            const ts = Math.floor(Date.now()/1000)
-            const prefix = `${priorHash}|${merkleRoot}|${ts}|`
-            while (counter < 25000) {
-                counter++
-                const header = prefix + String(nonce+counter)
-                const result = sha256(sha256(Buffer.from(header, "utf-8")))
+            else {
+                document.getElementById("lowBatteryMining").innerText = ""
+            }
+            let txs = [...mempool]
+            txs.unshift(`SYSTEM|${address}|${getBlockReward(blocks.length)}|0`)
 
-                let passed = true
-                for (let i = 0; i < 32; i++) {
-                    if (result[i] < difficultyBytes[i]) {break}
-                    if (result[i] > difficultyBytes[i]) {passed = false; break}
-                }
-                if (passed) {
+            let nonce = Math.floor(Math.random()*(2**32 - 2_000_000))
+            let counter = 0
+
+            let index = blocks[blocks.length-1].indexOf(",")
+            let lastHeader = blocks[blocks.length-1].slice(0, index)
+            let [lHash, lRoot, lTs, lNonce] = lastHeader.split("|")
+            if (useGPU) {
+                const priorHash = BigInt("0x" + sha256(sha256(Buffer.from(`${lHash}|${lRoot}|${Number(lTs)}|${Number(lNonce)}`, "utf-8"))).toString("hex")).toString(16)
+                const difficultyHex = getDifficulty(blocks.length).toString(16).padStart(64, "0")
+                const difficultyBytes = Buffer.from(difficultyHex, "hex")
+                const merkleRoot = sha256(Buffer.from(txs.join(""), "utf-8")).toString("hex")
+                const ts = Math.floor(Date.now()/1000)
+                const prefix = `${priorHash}|${merkleRoot}|${ts}|`
+                const result = await gpuHash(prefix, difficultyBytes, nonce, 2_000_000)
+                totalHashes += result.attempts
+                if (result.found) {
+                    const header = prefix + String(result.nonce)
+                    const hash = sha256(sha256(Buffer.from(header, "utf-8")))
                     const block = `${header},${JSON.stringify(txs)}`
                     if (verifyBlock(block)) {
                         mempool = []
                         blocks.push(block)
                         cacheBlock(block)
                         await broadcastBlock(block)
-                        saveBlocks()
                         totalHashesFound += 1
-                        break
+                        saveBlocks()
                     }
                 }
             }
-            totalHashes += counter
-            await sleep(0)
+            else {
+                const priorHash = BigInt("0x" + sha256(sha256(Buffer.from(`${lHash}|${lRoot}|${Number(lTs)}|${Number(lNonce)}`, "utf-8"))).toString("hex")).toString(16)
+                const difficultyHex = getDifficulty(blocks.length).toString(16).padStart(64, "0")
+                const difficultyBytes = Buffer.from(difficultyHex, "hex")
+                const merkleRoot = sha256(Buffer.from(txs.join(""), "utf-8")).toString("hex")
+                const ts = Math.floor(Date.now()/1000)
+                const prefix = `${priorHash}|${merkleRoot}|${ts}|`
+                while (counter < 25000) {
+                    counter++
+                    const header = prefix + String(nonce+counter)
+                    const result = sha256(sha256(Buffer.from(header, "utf-8")))
+
+                    let passed = true
+                    for (let i = 0; i < 32; i++) {
+                        if (result[i] < difficultyBytes[i]) {break}
+                        if (result[i] > difficultyBytes[i]) {passed = false; break}
+                    }
+                    if (passed) {
+                        const block = `${header},${JSON.stringify(txs)}`
+                        if (verifyBlock(block)) {
+                            mempool = []
+                            blocks.push(block)
+                            cacheBlock(block)
+                            await broadcastBlock(block)
+                            saveBlocks()
+                            totalHashesFound += 1
+                            break
+                        }
+                    }
+                }
+                totalHashes += counter
+                await sleep(0)
+            }
         }
+        catch (error) {await sleep(50)}
+    }
+}
+async function updateBatteryLevel() {
+    while (true) {
+        navigator.getBattery().then(function(battery) {
+            batteryLevel = battery.level
+            isCharging = battery.charging
+        })
+        await sleep(5000)
     }
 }

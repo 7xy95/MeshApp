@@ -56,7 +56,7 @@ function verifyBlock(block) {
         if (parts.length !== 4) {return false}
         let [priorHash, merkleRoot, ts, nonce] = parts
         ts = Number(ts)
-        if (ts >= Math.round(Date.now()/1000)+60) {return false}
+        if (ts >= Math.round(Date.now()/1000)+5) {return false}
         nonce = Number(nonce)
         if (txs.length === 0) {return false}
         let combined = ""

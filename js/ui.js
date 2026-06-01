@@ -87,19 +87,21 @@ function closeHistoryPopup() {
 }
 function setHistory() {
     let t = 0
+    let txIndex = -1
     for (let tx of mempool) {
+        txIndex++
         tx = tx.split("||")[0]
         if (tx.startsWith("MSG|")) {
             let [, from, to, , , messageHex] = tx.split("|")
             let bytes = Uint8Array.from(Buffer.from(messageHex, "hex"))
             let messageText = new TextDecoder("utf-8").decode(bytes)
-            if (from === address) {addHistoryElement("msg", -1, -1, to); t++}
-            if (to === address) {addHistoryElement("msg", -1, 0, from, messageText); t++}
+            if (from === address) {addHistoryElement("msg", -1, -1, parseAddr(to), "", "", txIndex); t++}
+            if (to === address) {addHistoryElement("msg", -1, 0, parseAddr(from), messageText, "", txIndex); t++}
             continue
         }
         let [from, to, amount,] = tx.split("|")
-        if (from === address) {addHistoryElement("tx", -1, -1*Number(amount)/1000, parseAddr(to)); t++}
-        if (to === address) {addHistoryElement("tx", -1, (Number(amount)-getFee(Number(amount)))/1000, parseAddr(from)); t++}
+        if (from === address) {addHistoryElement("tx", -1, -1*Number(amount)/1000, parseAddr(to), "", "", txIndex); t++}
+        if (to === address) {addHistoryElement("tx", -1, (Number(amount)-getFee(Number(amount)))/1000, parseAddr(from), "", "", txIndex); t++}
     }
     let i = -1; let b = blocks.length+1
     for (let block of [...blocks].reverse()) {
@@ -173,7 +175,7 @@ function addHistoryElement(type, blocksAgo, change, addr="", msg="", block="", t
                     <p class="changeH" style="color: #899df1">Received</p>
                     <p class="infoH">From <span style="color: #899df1">${addr}: <span style="color: #6774ff">${msg}</p>
                 </button>
-                `
+            `
         }
         else {
             hist.innerHTML += `
@@ -198,7 +200,6 @@ function addHistoryElement(type, blocksAgo, change, addr="", msg="", block="", t
     }
 }
 function openTxInfo(blockIndex, txIndex) {
-    return
     document.getElementById("txInfo").style.display = "flex"
     let titleText = document.getElementById("txInfoTitle")
     let blockIndexText = document.getElementById("txInfoBlockIndexField")
@@ -218,6 +219,7 @@ function openTxInfo(blockIndex, txIndex) {
     let block = ""
     if (blockIndex === -1) {
         tx = mempool[txIndex]
+        console.log(tx, txIndex)
     }
     else {
         block = blocks[blocks.length-blockIndex-1]
@@ -229,7 +231,10 @@ function openTxInfo(blockIndex, txIndex) {
 
     let fees = (getFee(txInfo.amount)/1000).toFixed(3)
     txInfo.amount = (txInfo.amount/1000).toFixed(3)
+    if (txIndex === 0) {fees = "0.000"}
 
+    txInfo.from = truncateAddress(parseAddr(txInfo.from))
+    txInfo.to = truncateAddress(parseAddr(txInfo.to))
     fromText.innerText = txInfo.from
     toText.innerText = txInfo.to
     amountText.innerText = txInfo.amount
@@ -240,16 +245,20 @@ function openTxInfo(blockIndex, txIndex) {
         extraLabel.innerText = "Message Sent:"
         extraText.innerText = msg
     }
-    titleText.innerText = `Transaction`
+    else {
+        extraLabel.innerText = ""
+        extraText.innerText = ""
+    }
+    titleText.innerText = `Transaction ${Buffer.from(sha256(sha256(Buffer.from(`${tx}`, "utf-8")))).toString("hex").slice(0, 20)}`
     if (blockIndex !== -1) {
         blockIndexText.innerText = `#${blocks.length-blockIndex}`
         confText.innerText = blockIndex+1
-        dateText.innerText = getTs(block)
+        dateText.innerText = (new Date(getTs(block)*1000)).toLocaleString()
     }
     else {
-        blockIndexText.innerText = `In mempool, not yet in block`
+        blockIndexText.innerText = `In mempool, unverified`
         confText.innerText = "0"
-        dateText.innerText = (new Date(getTs(block)*1000)).toLocaleString()
+        dateText.innerText = "No date until verified"
     }
 }
 function closeTxInfo() {

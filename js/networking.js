@@ -21,6 +21,7 @@ async function getLatestVersion() {
         try {
             let response = await fetch("https://api.github.com/repos/7xy95/MeshApp/releases/latest")
             response = await response.json()
+            latestVersion = response.tag_name
             return response.tag_name
         }
         catch (error) {}
@@ -63,6 +64,17 @@ async function newId() {
     return data.id
 }
 
+async function checkId() {
+    while (true) {
+        await sleep(10000)
+        allIds = await getIds()
+        if (id === 0) {continue}
+        if (!allIds.includes(id)) {
+            location.reload()
+        }
+        // document.getElementById("networkInfo").innerText = `Connected nodes: ${allIds.length-3}`
+    }
+}
 async function check() {
     while (true) {
         if (stop) {await sleep(50); continue}
@@ -94,12 +106,19 @@ async function check() {
                 if (result) {
                     blocks.push(message)
                     cacheBlock(message)
+                    // let index = message.indexOf(",")
+                    // let txs = split_(message.slice(index+1))
+                    // for (let item of mempool) {
+                    //     if (txs.includes(item)) {mempool.}
+                    // }
                     mempool = []
                     saveBlocks()
                 }
                 else {
-                    await send("getBlockCount", senderId)
-                    forkCase = true
+                    if (!forkCase) {
+                        void send("getBlockCount", senderId)
+                        forkCase = true
+                    }
                 }
             }
             else if (message.startsWith("getMempool")) {

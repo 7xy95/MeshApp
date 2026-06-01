@@ -125,5 +125,5 @@ async function startLoad() {
     }
     lastSeen = Date.now()
     saveBlocks()
-    latestVersion = await getLatestVersion()
+    latestVersion = void getLatestVersion()
 }

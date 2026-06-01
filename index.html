@@ -12,10 +12,11 @@
             color: #dfe6ed;
         }
         input {
-            background-color: #999ca8;
-            font-family: monospace;
-            border-radius: 0;
+            background-color: #2c4155;
+            color: #dfe6ed;
             border: none;
+            padding: 4px 7px;
+            font-family: monospace;
         }
         .page {
             width: 100vw;
@@ -86,7 +87,7 @@
         }
         .btn {
             margin-top: 30px;
-            background-color: #151e29;
+            background-color: #2c4155;
             color: #d6d7e1;
             border: none;
             padding: 8px 18px;
@@ -96,7 +97,7 @@
             transition: 0.2s;
         }
         .btn:hover {
-            background-color: #0b1117;
+            background-color: #243545;
             transform: scale(1.025);
         }
         .pageIcon {
@@ -136,13 +137,18 @@
             background-color: rgb(54 60 78 / 0.72);
         }
         .input {
-            border: 3px solid #151c23;
-            background-color: #151e29;
-            color: #c6d0dc;
+            background-color: #2c4155;
+            color: #dfe6ed;
+            border: none;
+            padding: 4px 7px;
+        }
+        .input::placeholder {
+            color: #dfe6ed;
         }
         input:focus {
+            background-color: #243545;
             outline: none;
-            border: 3px solid #0b1117;
+            border: none;
         }
         .miningHeader {
             display: flex;
@@ -222,7 +228,7 @@
             margin: 0 0 30px;
         }
         .historyItem:hover {
-            /*background-color: rgb(222 222 222 / 0.1);*/
+            background-color: rgb(222 222 222 / 0.1);
             /*padding: 15px;*/
             /*margin: -15px -15px 15px;*/
         }
@@ -268,7 +274,7 @@
     <div class="topBar">
         <p id="vBalanceTop" style="font-size: 24px; margin-top: -5px">Syncing...</p>
         <p id="addressTop" style="font-size: 16px; margin-top: -20px">This may take up to 20s...</p>
-        <button class="btn" onclick="logOut()" style="font-size: 16px; margin-top: 0; background-color: #2b3853; position: absolute; top: 10px; right: 10px">Log Out</button>
+        <button class="btn" onclick="logOut()" style="font-size: 16px; margin-top: 0; position: absolute; top: 10px; right: 10px">Log Out</button>
         <hr style="height: 2px; width: 100%">
     </div>
     <div id="page0" class="page">
@@ -289,8 +295,8 @@
                     <span class="value" id="unVBalance">0.000</span>
                 </p>
                 <div class="miningHeader" style="margin-top: 10px">
-                    <button class="btn" onclick="openTxPopup()" style="margin-top: 0; background-color: #2b3853; font-size: 12px">Send MESH</button>
-                    <button class="btn" onclick="openMsgPopup()" style="margin-top: 0; background-color: #2b3853; font-size: 12px">Send Msg (1 MESH)</button>
+                    <button class="btn" onclick="openTxPopup()" style="margin-top: 0; font-size: 12px">Send MESH</button>
+                    <button class="btn" onclick="openMsgPopup()" style="margin-top: 0; font-size: 12px">Send Msg (1 MESH)</button>
                 </div>
             </div>
             <div class="panel">
@@ -317,22 +323,26 @@
                     <span class="value" id="blockReward">-1</span>
                 </p>
             </div>
-            <div class="panel" style="margin-bottom: 12px">
+            <div class="panel" style="margin-bottom: 12px; flex: 0">
                 <div class="miningHeader">
                     <p style="margin: 0 15px 0 0">Mining</p>
                     <button class="btn" onclick="
                     mine = !mine
                     if (mine) {document.getElementById('toggleMiningBtn').innerText = 'Stop Mining'}
                     else {document.getElementById('toggleMiningBtn').innerText = 'Start Mining'}
-                    " style="margin-top: 0; background-color: #2b3853" id="toggleMiningBtn">Start Mining</button>
+                    " style="margin-top: 0" id="toggleMiningBtn">Start Mining</button>
                 </div>
                 <label style="display: flex">
                     <p style="margin: 10px 15px 0 0">Use GPU </p>
                     <input type="checkbox" onchange="useGPU = this.checked" id="useGPUCheckbox" style="position: relative; top: 2px; border-radius: 0; border: none">
                 </label>
                 <label style="display: flex">
-                    <p style="margin: 10px 15px 0 0">Throttle (ms):</p>
-                    <input value="0" id="throttleTime" class="input" style="position: relative; top: 2px; width: 75px">
+                    <p style="margin: 10px 15px 0 0; width: 200px; height: 90%">Throttle (ms):</p>
+                    <input value="0" id="throttleTime" class="input" style="position: relative; top: 2px; width: 75px; height: 90%">
+                </label>
+                <label style="display: flex">
+                    <p style="margin: 10px 15px 0 0; width: 200px">Min Battery (%):</p>
+                    <input value="25" id="minBattery" class="input" style="position: relative; top: 2px; width: 75px; height: 90%">
                 </label>
                 <hr>
                 <p class="info">
@@ -347,12 +357,13 @@
                     <span class="label">MESH/min:</span>
                     <span class="value" id="estMesh"></span>
                 </p>
+                <p id="lowBatteryMining" style="color: #f42525; font-size: 12px; margin: 0"></p>
             </div>
         </div>
         <div class="right">
             <div class="panel">
                 <p>History</p>
-                <button class="btn" onclick="openContactPopup()" style="font-size: 16px; margin-top: 0; background-color: #2b3853; position: absolute; top: 10px; right: 10px">Manage Contacts</button>
+                <button class="btn" onclick="openContactPopup()" style="font-size: 16px; margin-top: 0; position: absolute; top: 10px; right: 10px">Manage Contacts</button>
                 <hr>
                 <div class="history" id="history"></div>
             </div>
@@ -366,11 +377,11 @@
         <div class="panel fullscreen explorerPanel">
             <p style="font-size: 24px">Block Explorer</p>
             <label style="display: flex; align-items: center; gap: 10px">
-                <span>Number of rows to show: </span>
+                <span style="width: 250px">Number of rows to show: </span>
                 <input class="input" id="maxTxDisplay" type="number" value="100" oninput="updateBlockData()" style="width: 70px">
             </label>
             <label style="display: flex; align-items: center; gap: 10px; margin-top: 15px; margin-bottom: 15px">
-                <span>Specific address to search: </span>
+                <span style="width: 250px">Specific address to search: </span>
                 <input class="input" id="searchingAddress" oninput="
                 document.getElementById('hideSystemMined').checked = true
                 hideSystemMined = true
@@ -400,62 +411,65 @@
             </div>
         </div>
     </div>
+<!--    <p id="networkInfo" style="font-size: 16px; text-align: right"></p>-->
 </div>
 <div class="popup" style="display: none" id="tx">
     <div class="popupBox">
         <p style="font-size: 24px; margin-top: 20px; text-align: left" id="sendPopupTitle"></p>
-        <button class="btn" onclick="closePopup()" style="font-size: 32px; margin-top: 0; background-color: #2b3853; position: absolute; top: 10px; right: 10px">×</button>
+        <button class="btn" onclick="closePopup()" style="font-size: 32px; margin-top: 0; position: absolute; top: 10px; right: 10px">×</button>
         <input class="input" id="addressInput" placeholder="Enter Receiver's Address..." style="margin-top: 10px; width: 300px">
         <input class="input" id="dataInput" style="width: 300px" oninput="setFeeText()">
-        <button class="btn" onclick="submitTx()" style="row-gap: 0; background-color: #2b3853">Send</button>
+        <button class="btn" onclick="submitTx()" style="row-gap: 0">Send</button>
         <p style="color: #ed4141; margin-top: 20px; font-size: 14px" id="sendError"></p>
     </div>
 </div>
 <div class="popup" style="display: none" id="contacts">
     <div class="popupBox popupBoxLeft" style="width: 600px; height: 450px; margin-left: 40px; gap: 0">
         <p style="font-size: 24px; margin-top: 20px">Contacts</p>
-        <button class="btn" onclick="closeHistoryPopup()" style="font-size: 32px; margin-top: 0; background-color: #2b3853; position: absolute; top: 10px; right: 10px">×</button>
+        <button class="btn" onclick="closeHistoryPopup()" style="font-size: 32px; margin-top: 0; position: absolute; top: 10px; right: 10px">×</button>
         <input class="input" id="contactAddress" placeholder="Enter address to save as contact..." style="width: 330px">
         <input class="input" id="contactName" placeholder="Enter name..." style="width: 330px; margin-top: 10px">
-        <button class="btn" onclick="addContact()" style="margin-top: 10px; margin-bottom: 10px; background-color: #2b3853">Add Contact</button>
+        <button class="btn" onclick="addContact()" style="margin-top: 10px; margin-bottom: 10px">Add Contact</button>
         <div class="contactList" id="contactList"></div>
     </div>
 </div>
-<div class="popup" style="display: none">
+<div class="popup" id="txInfo" style="display: none">
     <div class="popupBox popupBoxLeft">
         <p style="font-size: 24px; margin-top: 20px" id="txInfoTitle"></p>
-        <button class="btn" onclick="closeTxInfo()" style="font-size: 32px; margin-top: 0; background-color: #2b3853; position: absolute; top: 10px; right: 10px">×</button>
-        <div class="info">
-            <div class="label">Block Index:</div>
-            <div class="value" id="txInfoBlockIndexField"></div>
-        </div>
-        <div class="info">
-            <div class="label">From:</div>
-            <div class="value" id="txInfoFromField"></div>
-        </div>
-        <div class="info">
-            <div class="label">To:</div>
-            <div class="value" id="txInfoToField"></div>
-        </div>
-        <div class="info">
-            <div class="label">Amount:</div>
-            <div class="value" id="txInfoAmountField"></div>
-        </div>
-        <div class="info">
-            <div class="label">Fees To Miner:</div>
-            <div class="value" id="txInfoFeesField"></div>
-        </div>
-        <div class="info">
-            <div class="label">Confirmations:</div>
-            <div class="value" id="txInfoConfField"></div>
-        </div>
-        <div class="info">
-            <div class="label">Date:</div>
-            <div class="value" id="txInfoDateField"></div>
-        </div>
-        <div class="info">
-            <div class="label" id="txInfoExtraLabel"></div>
-            <div class="value" id="txInfoExtraField"></div>
+        <button class="btn" onclick="closeTxInfo()" style="font-size: 32px; margin-top: 0; position: absolute; top: 10px; right: 10px">×</button>
+        <div style="width: 100%">
+            <div class="info" style="margin-bottom: 3px">
+                <div class="label">Block Index:</div>
+                <div class="value" id="txInfoBlockIndexField"></div>
+            </div>
+            <div class="info" style="margin-bottom: 3px">
+                <div class="label">From:</div>
+                <div class="value" id="txInfoFromField"></div>
+            </div>
+            <div class="info" style="margin-bottom: 3px">
+                <div class="label">To:</div>
+                <div class="value" id="txInfoToField"></div>
+            </div>
+            <div class="info" style="margin-bottom: 3px">
+                <div class="label">Amount:</div>
+                <div class="value" id="txInfoAmountField"></div>
+            </div>
+            <div class="info" style="margin-bottom: 3px">
+                <div class="label">Fees To Miner:</div>
+                <div class="value" id="txInfoFeesField"></div>
+            </div>
+            <div class="info" style="margin-bottom: 3px">
+                <div class="label">Confirmations:</div>
+                <div class="value" id="txInfoConfField"></div>
+            </div>
+            <div class="info" style="margin-bottom: 3px">
+                <div class="label">Date:</div>
+                <div class="value" id="txInfoDateField"></div>
+            </div>
+            <div class="info" style="margin-bottom: 3px">
+                <div class="label" id="txInfoExtraLabel"></div>
+                <div class="value" id="txInfoExtraField"></div>
+            </div>
         </div>
     </div>
 </div>
@@ -478,11 +492,19 @@
 
     async function start() {
         initContacts()
-        await startLoad()
-        void refresh()
-        void check()
-        void checkIdRequests()
-        void mineLoop()
+        try {
+            await startLoad()
+            void refresh()
+            void check()
+            void checkIdRequests()
+            void checkId()
+            void mineLoop()
+            void updateBatteryLevel()
+        }
+        catch (error) {
+            location.reload()
+            console.log(`reloaded: ${error}`)
+        }
     }
     async function logIn() {
         const seed = document.getElementById("walletSeedInput").value
@@ -502,11 +524,13 @@
     window.addEventListener("DOMContentLoaded", () => {
         void loadSession()
     })
-    window.addEventListener("error", () => {
+    window.addEventListener("error", (error) => {
         location.reload()
+        console.log(error)
     })
-    window.addEventListener("unhandledrejection", () => {
+    window.addEventListener("unhandledrejection", (error) => {
         location.reload()
+        console.log(error)
     })
     window.addEventListener("beforeunload", () => {
         fetch(url + "removeId", {
