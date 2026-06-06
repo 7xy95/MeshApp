@@ -5,6 +5,8 @@ function getMeshPerMin(hashes) {
 
 async function refresh(once=false, checkVersion=true) {
     let lastHashes = 0
+    let lastBlockCount = 0
+    let lastMempoolCount = 0
     while (true) {
         try {
             if (stop) {await sleep(50); continue}
@@ -17,7 +19,7 @@ async function refresh(once=false, checkVersion=true) {
             if (page === 1) {updateBlockData(); await sleep(5000); continue}
 
             if (Math.random() < 0.005) {void getLatestVersion()}
-            if (latestVersion !== APP_VERSION && checkVersion && latestVersion !== undefined) {document.getElementById("version").innerHTML = `<a href="https://github.com/7xy95/MeshApp/releases" style="color: dodgerblue">${latestVersion} available</a>`}
+            if (latestVersion !== APP_VERSION && checkVersion && latestVersion !== undefined) {document.getElementById("version").innerHTML = `<a href="https://github.com/7xy95/MeshApp/releases" style="color: dodgerblue">Get ${latestVersion}</a>`}
             else {document.getElementById("version").innerText = APP_VERSION}
 
             document.getElementById("difficulty").innerText = `${format(2**(256-getDifficultyBits(blocks.length)))}`
@@ -38,11 +40,15 @@ async function refresh(once=false, checkVersion=true) {
             document.getElementById("estMesh").innerText = getMeshPerMin(totalHashes - lastHashes).toFixed(3)
             lastHashes = totalHashes
 
-            totalHashes_.innerText = `${format(totalHashes, false)}`
+            totalHashes_.innerText = `${format(totalHashes)}`
             hashesFound.innerText = `${totalHashesFound}`
 
-            document.getElementById("history").innerHTML = ""
-            setHistory()
+            if ((lastMempoolCount !== mempool.length || lastBlockCount !== blocks.length) || Math.round(Date.now()/1000) % 10 === 0) {
+                document.getElementById("history").innerHTML = ""
+                setHistory()
+            }
+            lastMempoolCount = mempool.length
+            lastBlockCount = blocks.length
             if (once) {return}
             await sleep(1000)
         }
@@ -56,6 +62,8 @@ async function mineLoop() {
             if (id !== i) {void send(`verifyBlock:${block}`, i)}
         }
     }
+    let nonce = 998_000_000
+    let extraNonce = 0
     while (true) {
         try {
             await sleep(document.getElementById("throttleTime").value)
@@ -74,7 +82,14 @@ async function mineLoop() {
             let txs = [...mempool]
             txs.unshift(`SYSTEM|${address}|${getBlockReward(blocks.length)}|0`)
 
-            let nonce = Math.floor(Math.random()*(2**32 - 2_000_000))
+            if (nonce < 2**32-4_000_001) {nonce += 2_000_000}
+            else {
+                nonce = 998_000_000
+                extraNonce += 1
+                if (extraNonce >= 1000) {
+                    extraNonce = 0
+                }
+            }
             let counter = 0
 
             let index = blocks[blocks.length-1].indexOf(",")
@@ -86,12 +101,12 @@ async function mineLoop() {
                 const difficultyBytes = Buffer.from(difficultyHex, "hex")
                 const merkleRoot = sha256(Buffer.from(txs.join(""), "utf-8")).toString("hex")
                 const ts = Math.floor(Date.now()/1000)
-                const prefix = `${priorHash}|${merkleRoot}|${ts}|`
+                let prefix = `${priorHash}|${merkleRoot}|${ts}|`
+                if (extraNonce !== 0) {prefix += String(extraNonce)}
                 const result = await gpuHash(prefix, difficultyBytes, nonce, 2_000_000)
                 totalHashes += result.attempts
                 if (result.found) {
                     const header = prefix + String(result.nonce)
-                    const hash = sha256(sha256(Buffer.from(header, "utf-8")))
                     const block = `${header},${JSON.stringify(txs)}`
                     if (verifyBlock(block)) {
                         mempool = []
@@ -100,6 +115,9 @@ async function mineLoop() {
                         await broadcastBlock(block)
                         totalHashesFound += 1
                         saveBlocks()
+                    }
+                    else {
+                        console.log(`Block ${block} rejected`)
                     }
                 }
             }

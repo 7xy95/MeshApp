@@ -1,6 +1,6 @@
 async function startLoad() {
     function init() {
-        void refresh(true, false)
+        refresh(true, false)
         document.getElementById("vBalanceTop").innerText = "Syncing..."
         difficultyCache = [230]
         balancesCache = {}
@@ -15,13 +15,11 @@ async function startLoad() {
     let ids = await getIds()
     infoText.innerText = "Registering new id..."
     id = await newId()
-    if (ids.length === 0) {
-        for (let block of savedBlocks) {
-            blocks.push(block)
-            cacheBlock(block)
-        }
-        return
+    for (let block of savedBlocks) {
+        blocks.push(block)
+        cacheBlock(block)
     }
+    if (ids.length === 0) {return}
     init()
     let s = true
     for (let index=0; index<ids.length; index++) {

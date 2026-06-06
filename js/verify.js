@@ -100,6 +100,7 @@ function verifyBlock(block) {
         let result = BigInt("0x" + sha256(sha256(Buffer.from(`${priorHash}|${merkleRoot}|${ts}|${nonce}`, "utf-8"))).toString("hex"))
         let blockIndex = blocks.length
         if (!txs[0].startsWith("SYSTEM|") || !txs[0].endsWith(`|${getBlockReward(blockIndex)}|0`)) {return false}
+        if (txs[0].split("|").length !== 4) {return false}
         if (blockIndex === 0) {
             if (priorHash !== "0".repeat(64)) {return false}
         }

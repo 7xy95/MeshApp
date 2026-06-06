@@ -61,10 +61,15 @@ function createWindow() {
 }
 app.whenReady().then(() => {
     createWindow()
-    powerMonitor.on("resume",() => {
-        reload()
+    powerMonitor.on("resume", () => {
+        if (win && !win.isDestroyed()) {
+            win.loadFile("index.html")
+        }
     })
+
     powerMonitor.on("unlock-screen", () => {
-        reload()
+        if (win && !win.isDestroyed()) {
+            win.loadFile("index.html")
+        }
     })
 })

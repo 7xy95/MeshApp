@@ -57,6 +57,7 @@ async function loadSession() {
     publicKey = Buffer.from(localStorage.getItem("publicKey"), "hex")
     address = localStorage.getItem("address")
     mine = JSON.parse(localStorage.getItem("mine"))
+    if (mine) {document.getElementById("toggleMiningBtn").innerText = "Stop Mining"}
     useGPU = JSON.parse(localStorage.getItem("useGPU"))
     totalHashes = JSON.parse(localStorage.getItem("totalHashes"))
     totalHashesFound = JSON.parse(localStorage.getItem("totalHashesFound"))

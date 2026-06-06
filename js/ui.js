@@ -151,7 +151,7 @@ function addHistoryElement(type, blocksAgo, change, addr="", msg="", block="", t
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1dcd20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-banknote-arrow-up-icon lucide-banknote-arrow-up iconH"><path d="M12 18H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5"/><path d="M18 12h.01"/><path d="M19 22v-6"/><path d="m22 19-3-3-3 3"/><path d="M6 12h.01"/><circle cx="12" cy="12" r="2"/></svg>
                     ${time}
                     <p class="changeH" style="color: #1dcd20">+${change.toFixed(3)}</p>
-                    <p class="infoH">Received from <span style="color: #899df1">${addr}</span></p>
+                    <p class="infoH">Received from <span style="color: #899df1">${truncateAddress(addr)}</span></p>
                 </button>
                 `
         }
@@ -161,7 +161,7 @@ function addHistoryElement(type, blocksAgo, change, addr="", msg="", block="", t
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ff4242" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-banknote-arrow-down-icon lucide-banknote-arrow-down iconH"><path d="M12 18H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5"/><path d="m16 19 3 3 3-3"/><path d="M18 12h.01"/><path d="M19 16v6"/><path d="M6 12h.01"/><circle cx="12" cy="12" r="2"/></svg>
                     ${time}
                     <p class="changeH" style="color: #ff4242">${change.toFixed(3)}</p>
-                    <p class="infoH">Sent to <span style="color: #899df1">${addr}</p>
+                    <p class="infoH">Sent to <span style="color: #899df1">${truncateAddress(addr)}</p>
                 </button>
                 `
         }
@@ -173,7 +173,7 @@ function addHistoryElement(type, blocksAgo, change, addr="", msg="", block="", t
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6196ea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-message-square-text-icon lucide-message-square-text iconH"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"/><path d="M7 11h10"/><path d="M7 15h6"/><path d="M7 7h8"/></svg>
                     ${time}
                     <p class="changeH" style="color: #899df1">Received</p>
-                    <p class="infoH">From <span style="color: #899df1">${addr}: <span style="color: #6774ff">${msg}</p>
+                    <p class="infoH">From <span style="color: #899df1">${truncateAddress(addr)}: <span style="color: #6774ff">${msg}</p>
                 </button>
             `
         }
@@ -183,7 +183,7 @@ function addHistoryElement(type, blocksAgo, change, addr="", msg="", block="", t
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6196ea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-message-square-text-icon lucide-message-square-text iconH"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"/><path d="M7 11h10"/><path d="M7 15h6"/><path d="M7 7h8"/></svg>
                     ${time}
                     <p class="changeH" style="color: #ff4242">-1.000</p>
-                    <p class="infoH">Message sent to <span style="color: #899df1">${addr}</p>
+                    <p class="infoH">Message sent to <span style="color: #899df1">${truncateAddress(addr)}</p>
                 </button>
                 `
         }
@@ -231,13 +231,18 @@ function openTxInfo(blockIndex, txIndex) {
 
     let fees = (getFee(txInfo.amount)/1000).toFixed(3)
     txInfo.amount = (txInfo.amount/1000).toFixed(3)
-    if (txIndex === 0) {fees = "0.000"}
+    if (txIndex === 0) {
+        fees = "0.000"
+        // txInfo.amount += " + fees"
+    }
 
-    txInfo.from = truncateAddress(parseAddr(txInfo.from))
-    txInfo.to = truncateAddress(parseAddr(txInfo.to))
-    fromText.innerText = txInfo.from
-    toText.innerText = txInfo.to
+    fromText.innerHTML = `<span class="value" style="cursor: pointer" 
+        onclick="navigator.clipboard.writeText('${txInfo.from}')">${truncateAddress(parseAddr(txInfo.from))}</span>`
+    toText.innerHTML = `<span class="value" style="cursor: pointer" 
+        onclick="navigator.clipboard.writeText('${txInfo.to}')">${truncateAddress(parseAddr(txInfo.to))}</span>`
+
     amountText.innerText = txInfo.amount
+
     feesText.innerText = fees
     if (isMsg) {
         let bytes = Uint8Array.from(Buffer.from(txInfo.msgHex, "hex"))

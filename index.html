@@ -346,7 +346,7 @@
                 </label>
                 <hr>
                 <p class="info">
-                    <span class="label">Attempts:</span>
+                    <span class="label">Tried:</span>
                     <span class="value" id="totalHashes"></span>
                 </p>
                 <p class="info">
@@ -485,10 +485,30 @@
 <script src="js/start.js"></script>
 <script>
     setInterval(() => {
-        if (Date.now() - lastSeen > 20000) { location.reload()}
+        if (Date.now() - lastSeen > 20000) {location.reload()}
         lastSeen = Date.now()
         saveSession()
     }, 1000)
+
+    window.addEventListener("DOMContentLoaded", () => {
+        void loadSession()
+    })
+    window.addEventListener("error", (error) => {
+        location.reload()
+        console.log(error)
+    })
+    window.addEventListener("unhandledrejection", (error) => {
+        location.reload()
+        console.log(error)
+    })
+    window.addEventListener("beforeunload", () => {
+        fetch(url + "removeId", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({ id: id }),
+            keepalive: true
+        })
+    })
 
     async function start() {
         initContacts()
@@ -520,26 +540,6 @@
         noStart = true
         document.getElementById("walletSeedInput").value = ""
     }
-
-    window.addEventListener("DOMContentLoaded", () => {
-        void loadSession()
-    })
-    window.addEventListener("error", (error) => {
-        location.reload()
-        console.log(error)
-    })
-    window.addEventListener("unhandledrejection", (error) => {
-        location.reload()
-        console.log(error)
-    })
-    window.addEventListener("beforeunload", () => {
-        fetch(url + "removeId", {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({ id: id }),
-            keepalive: true
-        })
-    })
 </script>
 </body>
 </html>
