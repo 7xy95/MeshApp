@@ -73,7 +73,7 @@ let secret = 0
 let latestVersion = ""
 let mempool = []
 let blocks = []
-const url = "https://ban-watching-lenders-telecommunications.trycloudflare.com/"
+let url = ""
 
 let noStart = false
 let idRequestCount = {}

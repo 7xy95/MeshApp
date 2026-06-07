@@ -1,3 +1,14 @@
+async function updateURL() {
+    while (true) {
+        try {
+            let html = await (await fetch("https://meshmain.vercel.app/url")).text()
+            url = new DOMParser().parseFromString(html, "text/html").body.textContent.trim() + "/"
+            return
+        }
+        catch (error) {}
+    }
+}
+
 async function send(message, nodeId) {
     while (true) {
         try {

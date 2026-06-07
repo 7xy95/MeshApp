@@ -509,6 +509,15 @@
             keepalive: true
         })
     })
+    window.addEventListener("online", async () => {
+        await sleep(1000)
+        location.reload()
+    })
+    window.addEventListener("offline", () => {
+        stop = true
+        document.getElementById('vBalanceTop').innerText = "Offline"
+        document.getElementById('addressTop').innerText = "Waiting for internet connection..."
+    })
 
     async function start() {
         initContacts()

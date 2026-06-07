@@ -1,4 +1,5 @@
 async function startLoad() {
+    await updateURL()
     function init() {
         refresh(true, false)
         document.getElementById("vBalanceTop").innerText = "Syncing..."
