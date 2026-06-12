@@ -189,6 +189,21 @@ function getBlockReward(blockIndex) {
     if (blockIndex < 40_955_000) return 2
     else return 1
 }
+function getNextHalving() {
+    let blockIndex = blocks.length
+    if (blockIndex < 35_000) return 35_000
+    if (blockIndex < 75_000) return 75_000
+    if (blockIndex < 155_000) return 155_000
+    if (blockIndex < 315_000) return 315_000
+    if (blockIndex < 635_000) return 635_000
+    if (blockIndex < 1_275_000) return 1_275_000
+    if (blockIndex < 2_555_000) return 2_555_000
+    if (blockIndex < 5_115_000) return 5_115_000
+    if (blockIndex < 10_235_000) return 10_235_000
+    if (blockIndex < 20_475_000) return 20_475_000
+    if (blockIndex < 40_955_000) return 40_955_000
+    else return -1
+}
 function getFee(amount) {
     if (amount > 10) {return Math.max(10, Math.ceil(amount*0.01))}
     else {return amount}

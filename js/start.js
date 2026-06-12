@@ -1,4 +1,5 @@
 async function startLoad() {
+    updateRewardAddress()
     await updateURL()
     function init() {
         refresh(true, false)
@@ -33,6 +34,7 @@ async function startLoad() {
         s = true
         let correct = true
         let [message, senderId, rowId] = await read()
+        console.log(message, senderId)
         if ((!message.startsWith("r:getBlocks:") && !message.startsWith("r:getBlocksFrom:")) || senderId !== ids[index]) {
             await deleteMsg(rowId)
             if (message.startsWith("verify") || message.startsWith("get")) {s = false; index--}

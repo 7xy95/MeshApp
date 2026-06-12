@@ -11,31 +11,35 @@ async function refresh(once=false, checkVersion=true) {
         try {
             if (stop) {await sleep(50); continue}
             if (window.getSelection() && window.getSelection().toString().length > 0) {await sleep(50); continue}
-            let [v_, unV_] = getBalance(address)
-            document.getElementById("vBalance").innerText = `${(v_/1000).toFixed(3)} MESH`
-            document.getElementById("unVBalance").innerText = `${(unV_/1000).toFixed(3)} MESH`
-            document.getElementById("vBalanceTop").innerText = `Balance: ${(getSpendableBalance(address)/1000).toFixed(3)} MESH`
-            document.getElementById("addressTop").innerText = `Your Address: ${address}`
-            if (page === 1) {updateBlockData(); await sleep(5000); continue}
+            if (lastMempoolCount !== mempool.length || lastBlockCount !== blocks.length) {
+                let [v_, unV_] = getBalance(address)
+                document.getElementById("vBalance").innerText = `${(v_/1000).toFixed(3)} MESH`
+                document.getElementById("unVBalance").innerText = `${(unV_/1000).toFixed(3)} MESH`
+                document.getElementById("vBalanceTop").innerText = `Balance: ${(getSpendableBalance(address)/1000).toFixed(3)} MESH`
+                document.getElementById("addressTop").innerText = `Your Address: ${address}`
+                if (page === 1) {updateBlockData(); await sleep(5000); continue}
 
-            if (Math.random() < 0.005) {void getLatestVersion()}
+                document.getElementById("difficulty").innerText = `${format(2**(256-getDifficultyBits(blocks.length)))}`
+                document.getElementById("blockCount").innerText =  `${blocks.length}`
+            }
+
+            if (Date.now() % 100 === 0) {void getLatestVersion()}
             if (latestVersion !== APP_VERSION && checkVersion && latestVersion !== undefined) {document.getElementById("version").innerHTML = `<a href="https://github.com/7xy95/MeshApp/releases" style="color: dodgerblue">Get ${latestVersion}</a>`}
             else {document.getElementById("version").innerText = APP_VERSION}
-
-            document.getElementById("difficulty").innerText = `${format(2**(256-getDifficultyBits(blocks.length)))}`
-            document.getElementById("blockCount").innerText =  `${blocks.length}`
 
             let w = blocks.length - Math.floor(blocks.length/10)*10
             let amount = 0
             if (w !== 0) {amount = getDifficultyFromTs4(getTs(blocks[Math.floor(blocks.length/10)*10 -1]), Math.floor(Date.now()/1000), w+1, true)}
             else {amount = 0}
-            if (w > 3) {document.getElementById("nextDiff").innerText = `${format(2**(256-(getDifficultyBits(blocks.length) + amount)))}`}
+            if (w > 0) {document.getElementById("nextDiff").innerText = `${format(2**(256-(getDifficultyBits(blocks.length) + amount)))}`}
             else {document.getElementById("nextDiff").innerText = "-"}
 
             document.getElementById("blockReward").innerText = `${((getBlockReward(blocks.length)+getMinerRewards(mempool))/1000).toFixed(3)} MESH`
 
             let totalHashes_ = document.getElementById("totalHashes")
             let hashesFound = document.getElementById("hashesFound")
+            document.getElementById("hashrate").innerText = format(totalHashes - lastHashes) + "/s"
+            document.getElementById("nextHalving").innerText = String(getNextHalving())
 
             document.getElementById("estMesh").innerText = getMeshPerMin(totalHashes - lastHashes).toFixed(3)
             lastHashes = totalHashes
@@ -80,7 +84,7 @@ async function mineLoop() {
                 document.getElementById("lowBatteryMining").innerText = ""
             }
             let txs = [...mempool]
-            txs.unshift(`SYSTEM|${address}|${getBlockReward(blocks.length)}|0`)
+            txs.unshift(`SYSTEM|${miningAddress}|${getBlockReward(blocks.length)}|0`)
 
             if (nonce < 2**32-4_000_001) {nonce += 2_000_000}
             else {

@@ -50,6 +50,7 @@ function saveSession() {
     localStorage.setItem("totalHashesFound", JSON.stringify(totalHashesFound))
     localStorage.setItem("throttle", JSON.stringify(document.getElementById("throttleTime").value))
     localStorage.setItem("minBattery", JSON.stringify(document.getElementById("minBattery").value))
+    localStorage.setItem("rewardAddress", JSON.stringify(document.getElementById("rewardAddress").value))
 }
 async function loadSession() {
     if (localStorage.getItem("privateKey") == null) {return}
@@ -70,5 +71,7 @@ async function loadSession() {
         document.getElementById("minBattery").value = 25
     }
     else {document.getElementById("minBattery").value = savedMinBattery}
+    document.getElementById("rewardAddress").value = JSON.parse(localStorage.getItem("rewardAddress"))
+    updateRewardAddress()
     void start()
 }

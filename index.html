@@ -150,11 +150,6 @@
             outline: none;
             border: none;
         }
-        .miningHeader {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
         .popup {
             font-family: monospace;
             position: fixed;
@@ -262,6 +257,26 @@
             min-height: 0;
             overflow: hidden;
         }
+        .miningHeader {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .miningButtons {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .miningSettingsBtn {
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
     </style>
 </head>
 <body>
@@ -300,7 +315,7 @@
                 </div>
             </div>
             <div class="panel">
-                <p>Chain Info</p>
+                <p>Network Stats</p>
                 <hr>
                 <p class="info">
                     <span class="label">Version:</span>
@@ -314,9 +329,13 @@
                     <span class="label">Retarget:</span>
                     <span class="value" id="nextDiff">-1</span>
                 </p>
-                <p class="info">
-                    <span class="label">Block Count:</span>
+                <p class="info" style="margin-top: 24px">
+                    <span class="label">Block Height:</span>
                     <span class="value" id="blockCount">-1</span>
+                </p>
+                <p class="info">
+                    <span class="label">Next Halving:</span>
+                    <span class="value" id="nextHalving">-1</span>
                 </p>
                 <p class="info">
                     <span class="label">Block Reward:</span>
@@ -326,36 +345,31 @@
             <div class="panel" style="margin-bottom: 12px; flex: 0">
                 <div class="miningHeader">
                     <p style="margin: 0 15px 0 0">Mining</p>
-                    <button class="btn" onclick="
-                    mine = !mine
-                    if (mine) {document.getElementById('toggleMiningBtn').innerText = 'Stop Mining'}
-                    else {document.getElementById('toggleMiningBtn').innerText = 'Start Mining'}
-                    " style="margin-top: 0" id="toggleMiningBtn">Start Mining</button>
+                    <div class="miningButtons">
+                        <button class="btn" onclick="
+                        mine = !mine
+                        if (mine) {document.getElementById('toggleMiningBtn').innerText = 'Stop Mining'}
+                        else {document.getElementById('toggleMiningBtn').innerText = 'Start Mining'}
+                        " style="margin-top: 0; height: 32px" id="toggleMiningBtn">Start Mining</button>
+                        <button class="btn miningSettingsBtn" style="margin-top: 0" onclick="openMiningSettingsPopup()"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings-icon lucide-settings"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg></button>
+                    </div>
                 </div>
-                <label style="display: flex">
-                    <p style="margin: 10px 15px 0 0">Use GPU </p>
-                    <input type="checkbox" onchange="useGPU = this.checked" id="useGPUCheckbox" style="position: relative; top: 2px; border-radius: 0; border: none">
-                </label>
-                <label style="display: flex">
-                    <p style="margin: 10px 15px 0 0; width: 200px; height: 90%">Throttle (ms):</p>
-                    <input value="0" id="throttleTime" class="input" style="position: relative; top: 2px; width: 75px; height: 90%">
-                </label>
-                <label style="display: flex">
-                    <p style="margin: 10px 15px 0 0; width: 200px">Min Battery (%):</p>
-                    <input value="25" id="minBattery" class="input" style="position: relative; top: 2px; width: 75px; height: 90%">
-                </label>
                 <hr>
                 <p class="info">
                     <span class="label">Tried:</span>
-                    <span class="value" id="totalHashes"></span>
+                    <span class="value" id="totalHashes">-1</span>
                 </p>
                 <p class="info">
                     <span class="label">Found:</span>
-                    <span class="value" id="hashesFound"></span>
+                    <span class="value" id="hashesFound">-1</span>
                 </p>
                 <p class="info">
                     <span class="label">MESH/min:</span>
-                    <span class="value" id="estMesh"></span>
+                    <span class="value" id="estMesh">-1</span>
+                </p>
+                <p class="info">
+                    <span class="label">Hashrate:</span>
+                    <span class="value" id="hashrate">-1</span>
                 </p>
                 <p id="lowBatteryMining" style="color: #f42525; font-size: 12px; margin: 0"></p>
             </div>
@@ -431,6 +445,28 @@
         <input class="input" id="contactName" placeholder="Enter name..." style="width: 330px; margin-top: 10px">
         <button class="btn" onclick="addContact()" style="margin-top: 10px; margin-bottom: 10px">Add Contact</button>
         <div class="contactList" id="contactList"></div>
+    </div>
+</div>
+<div class="popup" style="display: none" id="miningSettings">
+    <div class="popupBox popupBoxLeft" style="width: 600px; height: 450px; margin-left: 40px; gap: 0">
+        <p style="font-size: 24px; margin-top: 20px">Mining Settings</p>
+        <button class="btn" onclick="closeMiningSettingsPopup()" style="font-size: 32px; margin-top: 0; position: absolute; top: 10px; right: 10px">×</button>
+        <label style="display: flex; margin-top: 8px">
+            <p style="margin: 10px 15px 0 0">Use GPU </p>
+            <input type="checkbox" onchange="useGPU = this.checked" id="useGPUCheckbox" style="position: relative; top: 2px; border-radius: 0; border: none">
+        </label>
+        <label style="display: flex; margin-top: 8px">
+            <p style="margin: 10px 15px 0 0; width: 200px; height: 90%">Throttle (ms):</p>
+            <input value="0" id="throttleTime" class="input" style="position: relative; top: 2px; width: 360px; height: 90%">
+        </label>
+        <label style="display: flex; margin-top: 8px">
+            <p style="margin: 10px 15px 0 0; width: 200px">Min Battery (%):</p>
+            <input value="25" id="minBattery" class="input" style="position: relative; top: 2px; width: 360px; height: 90%">
+        </label>
+        <label style="display: flex; margin-top: 8px">
+            <p style="margin: 10px 15px 0 0; width: 200px">Reward Address:</p>
+            <input oninput="updateRewardAddress()" placeholder="Leave blank for your address..." value="25" id="rewardAddress" class="input" style="position: relative; top: 2px; width: 360px; height: 90%">
+        </label>
     </div>
 </div>
 <div class="popup" id="txInfo" style="display: none">
@@ -523,6 +559,7 @@
         initContacts()
         try {
             await startLoad()
+            // updateRewardAddress()
             void refresh()
             void check()
             void checkIdRequests()
@@ -548,6 +585,9 @@
         document.getElementById("mainPanel").style.display = 'none'
         noStart = true
         document.getElementById("walletSeedInput").value = ""
+        localStorage.removeItem("privateKey")
+        localStorage.removeItem("publicKey")
+        localStorage.removeItem("address")
     }
 </script>
 </body>

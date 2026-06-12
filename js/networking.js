@@ -8,7 +8,6 @@ async function updateURL() {
         catch (error) {}
     }
 }
-
 async function send(message, nodeId) {
     while (true) {
         try {

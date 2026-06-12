@@ -12,6 +12,7 @@ function seedToAddress(seedText) {
     privateKey = sha256(sha256(Buffer.from(String(seedText), "utf-8")))
     publicKey = Buffer.from(secp256k1.getPublicKey(privateKey, true))
     address = hash160(publicKey).toString("hex")
+    if (miningAddress === "") {miningAddress = address}
 }
 function split_(text) {
     text = text.trim()

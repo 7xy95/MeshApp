@@ -269,6 +269,18 @@ function openTxInfo(blockIndex, txIndex) {
 function closeTxInfo() {
     document.getElementById("txInfo").style.display = "none"
 }
+function openMiningSettingsPopup() {
+    document.getElementById("miningSettings").style.display = "flex"
+}
+function updateRewardAddress() {
+    let rewardAddress = document.getElementById("rewardAddress").value
+    rewardAddress = parseContact(rewardAddress)
+    if (rewardAddress.length === 40) {miningAddress = rewardAddress}
+    else {miningAddress = address}
+}
+function closeMiningSettingsPopup() {
+    document.getElementById("miningSettings").style.display = "none"
+}
 function removeContact(addr) {
     document.getElementById("contactList").innerHTML = ""
     let contacts = getContacts()
@@ -295,6 +307,7 @@ function addContact() {
 
 function openPage(newPage) {
     if (newPage === page) {return}
+    if (newPage === 1) {updateBlockData()}
     document.getElementById(`page${newPage}`).style.display = "flex"
     document.getElementById(`page${page}`).style.display = "none"
     page = newPage
