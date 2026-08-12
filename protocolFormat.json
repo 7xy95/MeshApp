@@ -1,0 +1,71 @@
+{
+  "": {
+    "request": "getBlockCount",
+    "type": "response",
+    "protocol": 1,
+    "body": {
+      "blockCount": 31,
+      "tipHash": "0000000000000000000000000000000000000000",
+      "txsInMempool": 3
+    }
+  },
+  "": {
+    "request": "getBlockCount",
+    "type": "request",
+    "protocol": 1,
+    "body": {}
+  },
+
+
+  "": {
+    "request": "verifyTx",
+    "type": "info",
+    "protocol": 1,
+    "body": {
+      "tx": "......"
+    }
+  },
+  "": {
+    "request": "verifyBlock",
+    "type": "info",
+    "protocol": 1,
+    "body": {
+      "block": "......",
+      "blockCount": 31,
+      "tipHash": "0000000000000000000000000000000000000000"
+    }
+  },
+  "": {
+    "request": "getMempool",
+    "type": "response",
+    "protocol": 1,
+    "body": {
+      "mempool": ["tx1", "tx2", "tx3"]
+    }
+  },
+  "": {
+    "request": "getBlocks",
+    "type": "request",
+    "protocol": 1,
+    "body": {
+      "start": 0,
+      "stop": 2048
+    }
+  },
+  "": {
+    "request": "getBalance",
+    "type": "request",
+    "protocol": 1,
+    "body": {
+      "address": "0000000000000000000000000000000000000000"
+    }
+  },
+  "": {
+    "request": "getVersion",
+    "type": "response",
+    "protocol": 1,
+    "body": {
+      "version": "vx.y.z"
+    }
+  }
+}

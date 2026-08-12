@@ -2,14 +2,16 @@ function initContacts() {
     if (getContacts() === null) {saveContacts([])}
     else {
         let contacts = getContacts()
+        let html = ""
         for (let contact of contacts) {
-            document.getElementById("contactList").innerHTML += `
-                    <div class="contactItem">
-                        <span>${contact[0]}: ${contact[1]}</span>
-                        <button class="btn smallBtn" onclick="removeContact('${contact[0]}')">×</button>
-                    </div>
-                `
+            html += `
+                <div class="contactItem">
+                    <span>${contact[0]}: ${contact[1]}</span>
+                    <button class="btn smallBtn" onclick="removeContact('${contact[0]}')">×</button>
+                </div>
+            `
         }
+        edit("contactList", "innerHTML", html)
     }
 }
 function getContacts() {
@@ -40,38 +42,73 @@ function getSavedBlocks() {
 function saveBlocks() {
     fs.writeFileSync(blocksPath, JSON.stringify(blocks))
 }
-function saveSession() {
-    localStorage.setItem("privateKey", Buffer.from(privateKey).toString("hex"))
-    localStorage.setItem("publicKey", Buffer.from(publicKey).toString("hex"))
-    localStorage.setItem("address", address)
-    localStorage.setItem("mine", JSON.stringify(mine))
-    localStorage.setItem("useGPU", JSON.stringify(useGPU))
-    localStorage.setItem("totalHashes", JSON.stringify(totalHashes))
-    localStorage.setItem("totalHashesFound", JSON.stringify(totalHashesFound))
-    localStorage.setItem("throttle", JSON.stringify(document.getElementById("throttleTime").value))
-    localStorage.setItem("minBattery", JSON.stringify(document.getElementById("minBattery").value))
-    localStorage.setItem("rewardAddress", JSON.stringify(document.getElementById("rewardAddress").value))
+function saveNodes() {
+    fs.writeFileSync(nodesPath, JSON.stringify(allNodes))
 }
-async function loadSession() {
-    if (localStorage.getItem("privateKey") == null) {return}
-    privateKey = Buffer.from(localStorage.getItem("privateKey"), "hex")
-    publicKey = Buffer.from(localStorage.getItem("publicKey"), "hex")
-    address = localStorage.getItem("address")
-    mine = JSON.parse(localStorage.getItem("mine"))
-    if (mine) {document.getElementById("toggleMiningBtn").innerText = "Stop Mining"}
-    useGPU = JSON.parse(localStorage.getItem("useGPU"))
-    totalHashes = JSON.parse(localStorage.getItem("totalHashes"))
-    totalHashesFound = JSON.parse(localStorage.getItem("totalHashesFound"))
-    document.getElementById("logInPanel").style.display = "none"
-    document.getElementById("mainPanel").style.display = "flex"
-    document.getElementById("useGPUCheckbox").checked = useGPU
-    document.getElementById("throttleTime").value = JSON.parse(localStorage.getItem("throttle"))
-    let savedMinBattery = JSON.parse(localStorage.getItem("minBattery"))
-    if (savedMinBattery === "") {
-        document.getElementById("minBattery").value = 25
+function loadNodes() {
+    try {
+        if (!fs.existsSync(nodesPath)) {
+            fs.writeFileSync(nodesPath, "[]")
+        }
+        allNodes = JSON.parse(fs.readFileSync(nodesPath, "utf-8"))
     }
-    else {document.getElementById("minBattery").value = savedMinBattery}
-    document.getElementById("rewardAddress").value = JSON.parse(localStorage.getItem("rewardAddress"))
-    updateRewardAddress()
-    void start()
+    catch {
+        return []
+    }
+}
+async function saveSession() {
+    fs.writeFileSync(session, JSON.stringify({
+        privateKey: privateKey,
+        publicKey: publicKey,
+        address: address,
+        mine: mine,
+        useGPU: useGPU,
+        totalHashes: totalHashes,
+        totalHashesFound: totalHashesFound,
+        throttle: throttleTime,
+        minBattery: minBattery,
+        rewardAddress: await value("rewardAddress")
+    }, null, 2))
+}
+async function loadSession(Start=true) {
+    try {
+        if (!fs.existsSync(session)) {
+            fs.writeFileSync(session, "{}")
+        }
+        let data = JSON.parse(fs.readFileSync(session, "utf-8"))
+        if (data.privateKey == null) {return}
+        privateKey = Buffer.from(data.privateKey, "hex")
+        publicKey = Buffer.from(data.publicKey, "hex")
+        address = data.address
+        mine = data.mine
+        if (mine) {edit("toggleMiningBtn", "innerText", "Stop Mining")}
+        useGPU = data.useGPU
+        totalHashes = data.totalHashes
+        totalHashesFound = data.totalHashesFound
+        style("logInPanel", "display","none")
+        style("mainPanel", "display","flex")
+        edit("useGPUCheckbox", "checked", useGPU)
+        edit("throttleTime", "value", data.throttle)
+        throttleTime = data.throttle
+        let savedMinBattery = data.minBattery
+        if (savedMinBattery === "" || savedMinBattery === null) {
+            edit("minBattery", "value", 25)
+            minBattery = 25
+        }
+        else {
+            edit("minBattery", "value", savedMinBattery*100)
+            minBattery = savedMinBattery
+        }
+        edit("rewardAddress", "value", data.rewardAddress)
+        miningAddress = data.rewardAddress
+        void updateRewardAddress()
+        if (Start) {void start()}
+    }
+    catch (error) {console.log(error)}
+}
+async function updateRewardAddress() {
+    let rewardAddress = await value("rewardAddress")
+    rewardAddress = parseContact(rewardAddress)
+    if (rewardAddress.length === 40) {miningAddress = rewardAddress}
+    else {miningAddress = address}
 }

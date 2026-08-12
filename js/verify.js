@@ -48,6 +48,10 @@ function verifyMsg(msg, checkMempool=true) {
 }
 function verifyBlock(block) {
     try {
+        if (blocks.length === 0) {
+            if (block === GENESIS) {return true}
+            return false
+        }
         let index = block.indexOf(",")
         let header = block.slice(0, index)
         let txs = block.slice(index+1)

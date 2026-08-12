@@ -8,7 +8,10 @@ module.exports = {
     appBundleId: "com.sevenxy.mesh",
     appCategoryType: "public.app-category.utilities",
     name: "Mesh",
-    icon: path.resolve(__dirname, "assets", "mesh-icon")
+    icon: path.resolve(__dirname, "assets", "mesh-icon"),
+    extraResource: [
+      "bin"
+    ]
   },
   rebuildConfig: {},
   makers: [

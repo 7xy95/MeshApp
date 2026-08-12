@@ -208,3 +208,28 @@ function getFee(amount) {
     if (amount > 10) {return Math.max(10, Math.ceil(amount*0.01))}
     else {return amount}
 }
+function getTipHash() {
+    return blocks[blocks.length-1].split("|")[0]
+}
+function compare(original, candidate, startBlockHeight) {
+    function getValue(chain) {
+        if (10 - (startBlockHeight % 10) > chain.length) {
+            return chain.length
+        }
+        let d = 1
+        let t = 10 - (startBlockHeight % 10)
+        chain = chain.slice(t)
+        while (true) {
+            if (chain.length <= 10) {
+                d /= Math.pow(2,getDifficultyFromTs4(getTs(chain[0]), getTs(chain[chain.length-1]), chain.length))
+                t += chain.length*d
+                return t
+            }
+            d /= Math.pow(2,getDifficultyFromTs4(getTs(chain[0]), getTs(chain[9])))
+            t += 10*d
+            chain = chain.slice(10)
+        }
+        return t
+    }
+    return getValue(candidate) > getValue(original)
+}

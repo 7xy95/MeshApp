@@ -1,30 +1,26 @@
+const http = require("node:http")
+const { spawn } = require("node:child_process")
+const { app } = require("electron")
+
+let server = null
+let port = null
+let tunnelProcess = null
+let tunnelUrl = null
+
 async function updateURL() {
-    while (true) {
-        try {
-            let html = await (await fetch("https://meshmain.vercel.app/url")).text()
-            url = new DOMParser().parseFromString(html, "text/html").body.textContent.trim() + "/"
-            return
+    try {
+        let html = await (await fetch("https://meshcoin.org/node")).text()
+        const match = html.match(/https?:\/\/[^<\s]+/)
+        if (!match) {
+            throw new Error("No URL found")
         }
-        catch (error) {}
-    }
-}
-async function send(message, nodeId) {
-    while (true) {
-        try {
-            console.log(`sending ${truncateAddress(message, 25)}`)
-            await fetch(url + "sendMessage", {
-                method: "POST",
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({
-                    toId: nodeId,
-                    fromId: id,
-                    message: message
-                })
-            })
-            break
+        let url = match[0].replace(/\/$/, "") + "/"
+        if (!allNodes.includes(url) && !activeNodes.includes(url) && url !== tunnelUrl) {
+            allNodes.push(url)
         }
-        catch (error) {console.log(error); await sleep(100)}
+        return
     }
+    catch (error) {console.log(error)}
 }
 async function getLatestVersion() {
     while (true) {
@@ -37,210 +33,384 @@ async function getLatestVersion() {
         catch (error) {}
     }
 }
-async function deleteMsg(rowId) {
+async function get(nodeUrl, request, timeout=3) {
+    let controller = new AbortController()
+    let timer = setTimeout(() => controller.abort(), timeout*1000)
     try {
-        await fetch(url + "deleteMessageRow", {
-            method: "POST",
+        let response = await fetch(nodeUrl + request, {
+            method: "GET",
             headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({rowId: rowId})
+            signal: controller.signal
         })
+        if (!response.ok) {return null}
+
+        return await response.json()
     }
-    catch (error) {console.log(error)}
-}
-async function read(timeout=5) {
-    const controller = new AbortController()
-    const timer = setTimeout(() => {controller.abort()}, timeout*3000)
-    try {
-        let response = await fetch(url + `nextMessage?id=${id}&timeout=${timeout}`, {signal: controller.signal})
-        response = await response.json()
-        return [response.message, response.senderId, response.rowId, true]
+    catch (error) {return null}
+    finally {
+        clearTimeout(timer)
     }
-    catch (error) {console.log(error); return ["noResponse", -1, null, false]}
-    finally {clearTimeout(timer)}
-}
-async function getIds() {
-    while (true) {
-        try {
-            let response = await fetch(url + "allIds")
-            let data = await response.json()
-            return data.ids
-        }
-        catch (error) {await sleep(1500)}
-    }
-}
-async function newId() {
-    let response = await fetch(url + "newId")
-    let data = await response.json()
-    return data.id
 }
 
-async function checkId() {
-    while (true) {
-        await sleep(10000)
-        allIds = await getIds()
-        if (id === 0) {continue}
-        if (!allIds.includes(id)) {
-            location.reload()
+async function getNodes() {
+    async function g(node) {
+        try {
+            let res = await get(node, "allNodes")
+            let nodes = res.nodes
+            for (let n of nodes) {
+                if (!allNodes.includes(n) && !activeNodes.includes(n) && n !== tunnelUrl) {
+                    allNodes.push(n)
+                }
+            }
+            return true
         }
-        // document.getElementById("networkInfo").innerText = `Connected nodes: ${allIds.length-3}`
+        catch (error) {return false}
+    }
+    for (let i = 0; i<3; i++) {
+        g([...allNodes, ...activeNodes][Math.floor(Math.random()*(activeNodes.length+allNodes.length))])
     }
 }
-async function check() {
-    while (true) {
-        if (stop) {await sleep(50); continue}
-        let message = ""; let senderId = 0; let rowId = null;
+async function shareUrl() {
+    for (let i = 0; i<5; i++) {
+        let randNode = [...allNodes, ...activeNodes][Math.floor(Math.random()*(activeNodes.length+allNodes.length))]
+        void fetch(randNode + "node", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+                node: tunnelUrl
+            })
+        }).catch(error => {console.log(error)})
+    }
+}
+
+async function broadcastTx(tx) {
+    for (let node of activeNodes) {
+        void fetch(node + "tx", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+                tx: tx,
+                node: tunnelUrl
+            })
+        }).catch(error => {console.log(error)})
+    }
+}
+async function broadcastBlock(block, tipHash) {
+    for (let node of activeNodes) {
+        void fetch(node + "block", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+                block: block,
+                height: blocks.length,
+                tipHash: tipHash,
+                node: tunnelUrl
+            })
+        }).catch(error => {console.log(error)})
+    }
+}
+async function broadcastNode(url) {
+    for (let node of activeNodes) {
+        void fetch(node + "node", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+                node: url
+            })
+        }).catch(error => {console.log(error)})
+    }
+}
+
+function getCloudflarePath() {
+    function getResourcePath(...parts) {
+        if (app.isPackaged) {
+            return path.join(process.resourcesPath, ...parts)
+        }
+        return path.join(__dirname, ...parts)
+    }
+
+    if (process.platform === "darwin" && process.arch === "arm64") {
+        return getResourcePath("bin", "mac-arm64", "cloudflared")
+    }
+
+    if (process.platform === "darwin" && process.arch === "x64") {
+        return getResourcePath("bin", "mac-x64", "cloudflared")
+    }
+
+    if (process.platform === "win32") {
+        return getResourcePath("bin", "win-x64", "cloudflared.exe")
+    }
+}
+function runServer() {
+    function readBody(req) {
+        return new Promise((resolve, reject) => {
+            let body = ""
+            req.on("data", chunk => {
+                body += chunk.toString()
+            })
+            req.on("end", () => {
+                resolve(body)
+            })
+            req.on("error", reject)
+        })
+    }
+    function sendJSON(res, statusCode, data) {
+        res.writeHead(statusCode, {
+            "Content-Type": "application/json"
+        })
+        res.end(JSON.stringify(data))
+    }
+    if (server) {return}
+
+    server = http.createServer(async (req, res) => {
         try {
-            [message, senderId, rowId] = await read(5)
-            if (message.startsWith("get")) {
-                if (idRequestCount[senderId] === undefined) {
-                    idRequestCount[senderId] = 1
-                }
-                else {idRequestCount[senderId] += 1}
+            if (req.method === "GET" && req.url === "/getPeers") {
+                sendJSON(res, 200, {
+                    ok: true,
+                    peers: JSON.stringify(activeNodes)
+                })
+                return
             }
-            if (idRequestCount[senderId] >= MAX_GET_REQUESTS || blacklistedIds.includes(senderId)) {
-                continue
+            if (req.method === "GET" && req.url === "/online") {
+                sendJSON(res, 200, {
+                    ok: true
+                })
+                return
             }
-            else if (message.startsWith("getVersion")) {
-                await send(`r:getVersion:${JSON.stringify(APP_VERSION)}`, senderId)
+            if (req.method === "GET" && req.url === "/height") {
+                sendJSON(res, 200, {
+                    ok: true,
+                    height: blocks.length,
+                    tipHash: getTipHash()
+                })
+                return
             }
-            else if (message.startsWith("verifyTx:")) {
-                message = message.slice(9)
-                let result = ""
-                if (message.startsWith("MSG|")) {result = verifyMsg(message)}
-                else {result = verifyTx(message)}
-                if (result && !mempool.includes(message)) {mempool.push(message)}
+            if (req.method === "GET" && req.url === "/mempool") {
+                sendJSON(res, 200, {
+                    ok: true,
+                    mempool: mempool,
+                    tipHash: getTipHash()
+                })
+                return
             }
-            else if (message.startsWith("verifyBlock:")) {
-                message = message.slice(12)
-                let result = verifyBlock(message)
-                if (result) {
-                    blocks.push(message)
-                    cacheBlock(message)
-                    // let index = message.indexOf(",")
-                    // let txs = split_(message.slice(index+1))
-                    // for (let item of mempool) {
-                    //     if (txs.includes(item)) {mempool.}
-                    // }
-                    mempool = []
-                    saveBlocks()
-                }
-                else {
-                    if (!forkCase) {
-                        void send("getBlockCount", senderId)
-                        forkCase = true
-                    }
-                }
+            if (req.method === "GET" && req.url === "/nodes") {
+                sendJSON(res, 200, {
+                    ok: true,
+                    nodes: activeNodes
+                })
+                return
             }
-            else if (message.startsWith("getMempool")) {
-                await send(`r:getMempool:${JSON.stringify(mempool)}`, senderId)
+            if (req.method === "GET" && req.url === "/allNodes") {
+                sendJSON(res, 200, {
+                    ok: true,
+                    nodes: [...allNodes, ...activeNodes]
+                })
+                return
             }
-            else if (message.startsWith("getBlock:")) {
-                let index = message.slice(9)
-                let block = blocks[Number(index)]
-                await send(`r:getBlock:${JSON.stringify(block)}`, senderId)
-            }
-            else if (message.startsWith("getBlocks")) {
-                await send(`r:getBlocks:${JSON.stringify(blocks)}`, senderId)
-            }
-            else if (message.startsWith("getBlocksFrom:")) {
-                await send(`r:getBlocksFrom:${JSON.stringify(blocks.slice(Number(message.slice(14))))}`, senderId)
-            }
-            else if (message.startsWith("getBlockCount")) {
-                await send(`r:getBlockCount:${blocks.length}`, senderId)
-            }
-            else if (message.startsWith("getBalance:")) {
-                let addr = message.slice(11)
-                let [v, unV] = getBalance(addr)
-                await send(`r:getBalance:${v},${unV}`, senderId)
-            }
-            else if (message.startsWith("getLastBlocks:")) {
-                let amount = Number(message.slice(14))
-                let count = blocks.length
-                await send(`r:getLastBlocks:${blocks.slice(count-amount)}`)
-            }
-            else if (message.startsWith("getDifficulty")) {
-                await send(`r:getDifficulty:${getDifficulty(blocks.length)}`, senderId)
-            }
-            else if (message.startsWith("r:getBlockCount:") && forkCase) {
+            if (req.method === "GET" && req.url.startsWith("/blocks?")) {
+                let url = new URL(req.url, "http://localhost")
                 try {
-                    if (Number(message.slice(16)) > blocks.length) {await send(`getBlocks`, senderId)}
-                    else {forkCase = false}
-                }
-                catch (error) {forkCase = false}
-            }
-            else if (message.startsWith("r:getBlocks:") && forkCase) {
-                let original = blocks
-                let b = null
-                try {
-                    b = JSON.parse(message.slice(12))
-                }
-                catch (error) {
-                    b = split_(message.slice(12))
-                }
-                if (b.length < original.length) {
-                    forkCase = false
-                    continue
-                }
-                difficultyCache = [230]
-                balancesCache = {}
-                nonceCache = new Set()
-                blocks = []
-                let i = -1
-                for (let block of b) {
-                    i++
-                    let result = null
-                    if (i === 0) {
-                        if (block !== GENESIS) {
-                            result = false
+                    let start = Number(url.searchParams.get("start"))
+                    let stop = url.searchParams.get("stop")
+                    if (stop !== null) {
+                        stop = Number(stop)
+                        if (stop - start > MAX_BLOCKS || start > stop) {
+                            sendJSON(res, 400, {
+                                ok: false,
+                                error: "Invalid or too large block request count"
+                            })
+                            return
                         }
-                        else {
-                            blocks.push(block)
-                            cacheBlock(block)
-                            continue
-                        }
-                    }
-                    result = verifyBlock(block)
-                    if (!result) {
-                        difficultyCache = [230]
-                        balancesCache = {}
-                        nonceCache = new Set()
-                        blocks = original
-                        for (let block of blocks) {cacheBlock(block)}
-                        break
+                        sendJSON(res, 200, {
+                            ok: true,
+                            blocks: blocks.slice(start, stop+1)
+                        })
+                        return
                     }
                     else {
-                        blocks.push(block)
-                        cacheBlock(block)
+                        sendJSON(res, 200, {
+                            ok: true,
+                            blocks: blocks.slice(start, start+MAX_BLOCKS)
+                        })
+                        return
                     }
                 }
-                saveBlocks()
-                forkCase = false
-            }
-            else if (message !== "noResponse" && !message.startsWith("r:get")){
-                console.log(`Received unknown request from node ${senderId}: ${message}`)
-            }
-        }
-        catch (error) {}
-        finally {
-            if (rowId !== null && rowId !== undefined){
-                await deleteMsg(rowId)
-            }
-        }
-        await sleep(0)
-    }
-}
-async function checkIdRequests() {
-    while (true) {
-        try {
-            idRequestCount = {}
-            await sleep(30000)
-            blacklistedIds = []
-            for (let [nodeId, requestCount] of Object.entries(idRequestCount)) {
-                if (requestCount >= MAX_GET_REQUESTS) {
-                    blacklistedIds.push(nodeId)
+                catch (error) {
+                    sendJSON(res, 400, {
+                        ok: false,
+                        error: error
+                    })
+                    return
                 }
             }
+
+            async function parsePOST(req, res) {
+                let body = await readBody(req)
+                let data = null
+                try {
+                    data = JSON.parse(body)
+                    return data
+                }
+                catch (error) {
+                    sendJSON(res, 400, {
+                        ok: false,
+                        error: "Invalid JSON"
+                    })
+                    return "return"
+                }
+            }
+            if (req.method === "POST" && req.url === "/tx") {
+                data = await parsePOST(req, res)
+                if (data === "return") {return}
+
+                sendJSON(res, 200, {
+                    ok: true
+                })
+                if (mempool.includes(data.tx)) {return}
+                if (!verifyTx(data.tx)) {return}
+                mempool.push(data.tx)
+                void broadcastTx(data.tx)
+                return
+            }
+            if (req.method === "POST" && req.url === "/block") {
+                data = await parsePOST(req, res)
+                if (data === "return") {return}
+
+                sendJSON(res, 200, {
+                    ok: true
+                })
+                if (blocks.includes(data.block)) {return}
+                if (!verifyBlock(data.block)) {
+                    let h = await get(data.node, "height")
+                    if (!h || !h.ok || h.height <= blocks.length) {return}
+
+                    let fStart = blocks.length - MAX_FBLOCKS
+
+                    let oData = await get(data.node, `blocks?start=${fStart}`)
+                    if (!oData || !oData.ok || !Array.isArray(oData.blocks)) {return}
+                    let oBlocks = oData.blocks
+                    if (oBlocks[0] !== blocks[fStart]) {return}
+                    let sBlocks = blocks.slice()
+                    let sDiff = difficultyCache.slice()
+                    let sBalance = structuredClone(balancesCache)
+                    let sNonce = new Set(nonceCache)
+                    for (let i = 1; i < oBlocks.length; i++) {
+                        if (fStart + i >= blocks.length || oBlocks[i] !== blocks[fStart+i]) {
+                            blocks = blocks.slice(0, fStart+i)
+                            difficultyCache = [230]
+                            balancesCache = {}
+                            nonceCache = new Set()
+                            for (let b of blocks) {
+                                cacheBlock(b)
+                            }
+                            for (let b of oBlocks.slice(i)) {
+                                if (verifyBlock(b)) {
+                                    blocks.push(b)
+                                    cacheBlock(b)
+                                }
+                                else {
+                                    blocks = sBlocks
+                                    difficultyCache = sDiff
+                                    balancesCache = sBalance
+                                    nonceCache = sNonce
+                                    return
+                                }
+                            }
+                            if (sBlocks[fStart+i] !== undefined && !compare(sBlocks.slice(fStart+i), oBlocks.slice(i), fStart+i)) {
+                                blocks = sBlocks
+                                difficultyCache = sDiff
+                                balancesCache = sBalance
+                                nonceCache = sNonce
+                                return
+                            }
+                            saveBlocks()
+                            await broadcastBlock(data.block, getTipHash())
+                            return
+                        }
+                    }
+                }
+                await broadcastBlock(data.block, getTipHash())
+                blocks.push(data.block)
+                cacheBlock(data.block)
+                mempool = []
+                return
+            }
+            if (req.method === "POST" && req.url === "/node") {
+                data = await parsePOST(req, res)
+                if (data === "return") {return}
+
+                sendJSON(res, 200, {
+                    ok: true
+                })
+                if (allNodes.includes(data.node) || activeNodes.includes(data.node) || data.node === tunnelUrl) {return}
+                allNodes.push(data.node)
+                void broadcastNode(data.node)
+                return
+            }
+
+            sendJSON(res, 404, {
+                ok: false,
+                error: "Invalid Endpoint"
+            })
         }
-        catch (error) {}
+        catch (error) {
+            sendJSON(res, 500, {
+                ok: false,
+                error: error
+            })
+        }
+    })
+
+    server.listen(0, "127.0.0.1", () => {
+        port = server.address().port
+        startQuickTunnel()
+    })
+    function startQuickTunnel() {
+        edit("addressTop", "innerText", "Requesting public endpoint...")
+        async function tunnelOutput(text) {
+            if (tunnelUrl !== null) {return}
+            let match = text.match(/https:\/\/[a-zA-Z0-9-]+\.trycloudflare\.com/)
+
+            if (!match) {return}
+            tunnelUrl = match[0] + "/"
+            console.log(`tunnel url: ${tunnelUrl}`)
+            edit("addressTop", "innerText", "Waiting for URL to be reachable...")
+            await sleep(5000)
+            let data = await get(tunnelUrl, "online")
+            if (data === null) {
+                console.log("did not respond")
+                tunnelProcess.kill()
+                return
+            }
+            edit("addressTop", "innerText", "Getting other node URLs...")
+            await updateURL()
+            void startLoad()
+        }
+        if (tunnelProcess) {return}
+        if (!port) {return}
+
+        let cloudflarePath = getCloudflarePath()
+        tunnelProcess = spawn(cloudflarePath, [
+            "tunnel",
+            "--url",
+            `http://127.0.0.1:${port}`
+        ])
+
+        tunnelProcess.stdout.on("data", data => {
+            tunnelOutput(data.toString())
+        })
+        tunnelProcess.stderr.on("data", data => {
+            tunnelOutput(data.toString())
+        })
+
+        tunnelProcess.on("close", c => {
+            console.log(`tunnel closed: ${c}`)
+            tunnelProcess = null
+            tunnelUrl = null
+            startQuickTunnel()
+        })
     }
 }
+
+global.getNodes = getNodes
+global.shareUrl = shareUrl

@@ -36,7 +36,7 @@
             justify-content: center;
             align-items: center;
             flex-direction: column;
-            width: 100vw;
+            width: 100vh;
             height: 100vh;
         }
         .mainPanel {
@@ -283,13 +283,15 @@
 <div id="logInPanel" class="logInPanel">
     <p id="enterSeedText">Enter wallet seed:</p>
     <input class="input" type="password" id="walletSeedInput">
-    <button class="btn" type="submit" onclick="logIn()">Log In</button>
+    <p style="margin-left: 100px; margin-right: 100px; margin-bottom: 0; text-align: center">The wallet seed is a password that will store your Mesh, please ensure
+    that you save it somewhere safe. It is also advised to select a secure seed at least 10 characters long</p>
+    <button class="btn" type="submit" onclick="run(`logIn(${JSON.stringify(document.getElementById('walletSeedInput').value)})`)">Log In</button>
 </div>
 <div id="mainPanel" class="mainPanel" style="display: none">
     <div class="topBar">
         <p id="vBalanceTop" style="font-size: 24px; margin-top: -5px">Syncing...</p>
         <p id="addressTop" style="font-size: 16px; margin-top: -20px">This may take up to 20s...</p>
-        <button class="btn" onclick="logOut()" style="font-size: 16px; margin-top: 0; position: absolute; top: 10px; right: 10px">Log Out</button>
+        <button class="btn" onclick="run('logOut()')" style="font-size: 16px; margin-top: 0; position: absolute; top: 10px; right: 10px">Log Out</button>
         <hr style="height: 2px; width: 100%">
     </div>
     <div id="page0" class="page">
@@ -311,7 +313,7 @@
                 </p>
                 <div class="miningHeader" style="margin-top: 10px">
                     <button class="btn" onclick="openTxPopup()" style="margin-top: 0; font-size: 12px">Send MESH</button>
-                    <button class="btn" onclick="openMsgPopup()" style="margin-top: 0; font-size: 12px">Send Msg (1 MESH)</button>
+<!--                    <button class="btn" onclick="openMsgPopup()" style="margin-top: 0; font-size: 12px">Send Msg (1 MESH)</button>-->
                 </div>
             </div>
             <div class="panel">
@@ -346,11 +348,7 @@
                 <div class="miningHeader">
                     <p style="margin: 0 15px 0 0">Mining</p>
                     <div class="miningButtons">
-                        <button class="btn" onclick="
-                        mine = !mine
-                        if (mine) {document.getElementById('toggleMiningBtn').innerText = 'Stop Mining'}
-                        else {document.getElementById('toggleMiningBtn').innerText = 'Start Mining'}
-                        " style="margin-top: 0; height: 32px" id="toggleMiningBtn">Start Mining</button>
+                        <button class="btn" onclick="toggleMining()" style="margin-top: 0; height: 32px" id="toggleMiningBtn">Start Mining</button>
                         <button class="btn miningSettingsBtn" style="margin-top: 0" onclick="openMiningSettingsPopup()"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings-icon lucide-settings"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg></button>
                     </div>
                 </div>
@@ -392,14 +390,14 @@
             <p style="font-size: 24px">Block Explorer</p>
             <label style="display: flex; align-items: center; gap: 10px">
                 <span style="width: 250px">Number of rows to show: </span>
-                <input class="input" id="maxTxDisplay" type="number" value="100" oninput="updateBlockData()" style="width: 70px">
+                <input class="input" id="maxTxDisplay" type="number" value="100" oninput="run('updateBlockData()')" style="width: 70px">
             </label>
             <label style="display: flex; align-items: center; gap: 10px; margin-top: 15px; margin-bottom: 15px">
                 <span style="width: 250px">Specific address to search: </span>
                 <input class="input" id="searchingAddress" oninput="
                 document.getElementById('hideSystemMined').checked = true
-                hideSystemMined = true
-                updateBlockData()
+                run('hideSystemMined = true')
+                run('updateBlockData()')
                 " style="width: 250px">
             </label>
             <div style="display: flex" id="searchBalanceInfo">
@@ -410,7 +408,7 @@
             </div>
             <label style="display: flex">
                 <p style="margin-right: 15px">Hide empty system-mined blocks </p>
-                <input checked id="hideSystemMined" type="checkbox" onchange="hideSystemMined = this.checked; void refresh(true)" style="border-radius: 0; border: none">
+                <input checked id="hideSystemMined" type="checkbox" onchange="run(`hideSystemMined = ${this.checked}`); run('void refresh(true)')" style="border-radius: 0; border: none">
             </label>
             <div>
                 <p class="blockInfo">
@@ -453,19 +451,19 @@
         <button class="btn" onclick="closeMiningSettingsPopup()" style="font-size: 32px; margin-top: 0; position: absolute; top: 10px; right: 10px">×</button>
         <label style="display: flex; margin-top: 8px">
             <p style="margin: 10px 15px 0 0">Use GPU </p>
-            <input type="checkbox" onchange="useGPU = this.checked" id="useGPUCheckbox" style="position: relative; top: 2px; border-radius: 0; border: none">
+            <input type="checkbox" onchange="run(`useGPU = ${this.checked}`)" id="useGPUCheckbox" style="position: relative; top: 2px; border-radius: 0; border: none">
         </label>
         <label style="display: flex; margin-top: 8px">
             <p style="margin: 10px 15px 0 0; width: 200px; height: 90%">Throttle (ms):</p>
-            <input value="0" id="throttleTime" class="input" style="position: relative; top: 2px; width: 360px; height: 90%">
+            <input value="0" id="throttleTime" class="input" onchange="run(`throttleTime = ${Number(this.value) || 0}`)" style="position: relative; top: 2px; width: 360px; height: 90%">
         </label>
         <label style="display: flex; margin-top: 8px">
             <p style="margin: 10px 15px 0 0; width: 200px">Min Battery (%):</p>
-            <input value="25" id="minBattery" class="input" style="position: relative; top: 2px; width: 360px; height: 90%">
+            <input value="25" id="minBattery" class="input" onchange="run(`minBattery = ${Number(this.value) || 25}`)" style="position: relative; top: 2px; width: 360px; height: 90%">
         </label>
         <label style="display: flex; margin-top: 8px">
             <p style="margin: 10px 15px 0 0; width: 200px">Reward Address:</p>
-            <input oninput="updateRewardAddress()" placeholder="Leave blank for your address..." value="25" id="rewardAddress" class="input" style="position: relative; top: 2px; width: 360px; height: 90%">
+            <input oninput="run('updateRewardAddress()')" placeholder="Leave blank for your address..." value="" id="rewardAddress" class="input" style="position: relative; top: 2px; width: 360px; height: 90%">
         </label>
     </div>
 </div>
@@ -509,86 +507,51 @@
         </div>
     </div>
 </div>
-<script src="gpuMiner.js"></script>
-<script src="js/globals.js"></script>
-<script src="js/verify.js"></script>
-<script src="js/getChainData.js"></script>
-<script src="js/ui.js"></script>
-<script src="js/storage.js"></script>
-<script src="js/networking.js"></script>
-<script src="js/loops.js"></script>
-<script src="js/utils.js"></script>
-<script src="js/start.js"></script>
 <script>
-    setInterval(() => {
-        if (Date.now() - lastSeen > 20000) {location.reload()}
-        lastSeen = Date.now()
-        saveSession()
-    }, 1000)
+    let popup = -1
+    let page = 0
 
-    window.addEventListener("DOMContentLoaded", () => {
-        void loadSession()
+    const { ipcRenderer } = require("electron")
+    ipcRenderer.on("ui:set", (event, data) => {
+        let e = document.getElementById(data.id)
+        if (!e) {return}
+        e[data.property] = data.value
     })
+    ipcRenderer.on("ui:style", (event, data) => {
+        let e = document.getElementById(data.id)
+        if (!e) {return}
+        e.style[data.property] = data.value
+    })
+    ipcRenderer.on("ui:call", (event, data) => {
+        let fn = window[data.functionName]
+        if (typeof fn !== "function") {
+            console.log("function not known: " + data.functionName)
+            return
+        }
+        fn(...data.args)
+    })
+    function run(code) {
+        ipcRenderer.send("main:run", code)
+    }
+    async function get(code) {
+        return await ipcRenderer.invoke("main:get", code)
+    }
+
     window.addEventListener("error", (error) => {
-        location.reload()
         console.log(error)
     })
     window.addEventListener("unhandledrejection", (error) => {
-        location.reload()
         console.log(error)
     })
-    window.addEventListener("beforeunload", () => {
-        fetch(url + "removeId", {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({ id: id }),
-            keepalive: true
-        })
-    })
-    window.addEventListener("online", async () => {
-        await sleep(1000)
-        location.reload()
-    })
-    window.addEventListener("offline", () => {
-        stop = true
-        document.getElementById('vBalanceTop').innerText = "Offline"
-        document.getElementById('addressTop').innerText = "Waiting for internet connection..."
-    })
 
-    async function start() {
-        initContacts()
-        try {
-            await startLoad()
-            // updateRewardAddress()
-            void refresh()
-            void check()
-            void checkIdRequests()
-            void checkId()
-            void mineLoop()
-            void updateBatteryLevel()
-        }
-        catch (error) {
-            location.reload()
-            console.log(`reloaded: ${error}`)
-        }
-    }
-    async function logIn() {
-        const seed = document.getElementById("walletSeedInput").value
-        seedToAddress(seed)
-        document.getElementById("logInPanel").style.display = 'none'
-        document.getElementById("mainPanel").style.display = 'flex'
-        if (!noStart) {await start()}
-        else {await refresh(true)}
-    }
-    async function logOut() {
-        document.getElementById("logInPanel").style.display = 'flex'
-        document.getElementById("mainPanel").style.display = 'none'
-        noStart = true
-        document.getElementById("walletSeedInput").value = ""
-        localStorage.removeItem("privateKey")
-        localStorage.removeItem("publicKey")
-        localStorage.removeItem("address")
+    async function toggleMining() {
+        run('mine = !mine')
+        if (await get('mine')) {document.getElementById('toggleMiningBtn').innerText = 'Stop Mining'}
+        else {document.getElementById('toggleMiningBtn').innerText = 'Start Mining'}
     }
 </script>
+<script src="js/ui.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/storage.js"></script>
 </body>
 </html>

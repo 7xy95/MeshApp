@@ -61,6 +61,11 @@ function parseContact(address) {
     }
     return address
 }
+function hashTx(tx) {
+    let txHash = sha256(Buffer.from(tx, "utf-8"))
+    let signature = secp256k1.sign(txHash, privateKey, { prehash: false, format: "der" })
+    return `${tx}||${Buffer.from(publicKey).toString("hex")}||${Buffer.from(signature).toString("hex")}`
+}
 function truncateAddress(address, a=10) {
     if (address.length > a) {return address.slice(0, a) + "..."}
     else {return address}
@@ -129,4 +134,64 @@ function parseTx(tx) {
             "nonce": nonce
         }, false]
     }
+}
+function openTxInfo(blockIndex, txIndex) {
+    style("txInfo", "display", "flex")
+    edit("txInfoExtraLabel", "innerText", "")
+
+    let txInfo = {}
+    let isMsg = false
+    let tx = ""
+    let block = ""
+    if (blockIndex === -1) {
+        tx = mempool[txIndex]
+        console.log(tx, txIndex)
+    }
+    else {
+        block = blocks[blocks.length-blockIndex-1]
+        let txs = block.slice(block.indexOf(",") + 1)
+        txs = split_(txs)
+        tx = txs[txIndex]
+    }
+    [txInfo, isMsg] = parseTx(tx)
+
+    let fees = (getFee(txInfo.amount)/1000).toFixed(3)
+    txInfo.amount = (txInfo.amount/1000).toFixed(3)
+    if (txIndex === 0) {
+        fees = "0.000"
+        // txInfo.amount += " + fees"
+    }
+
+    edit("txInfoFromField", "innerHTML", `<span class="value" style="cursor: pointer" 
+        onclick="navigator.clipboard.writeText('${txInfo.from}')">${truncateAddress(parseAddr(txInfo.from))}</span>`)
+    edit("txInfoToField", "innerHTML", `<span class="value" style="cursor: pointer" 
+        onclick="navigator.clipboard.writeText('${txInfo.to}')">${truncateAddress(parseAddr(txInfo.to))}</span>`)
+
+    edit("txInfoAmountField", "innerText", txInfo.amount)
+
+    edit("txInfoFeesField", "innerText", fees)
+    if (isMsg) {
+        let bytes = Uint8Array.from(Buffer.from(txInfo.msgHex, "hex"))
+        let msg = new TextDecoder("utf-8").decode(bytes)
+        edit("txInfoExtraLabel", "innerText", "Message Sent:")
+        edit("txInfoExtraField", "innerText", msg)
+    }
+    else {
+        edit("txInfoExtraLabel", "innerText", "")
+        edit("txInfoExtraField", "innerText", "")
+    }
+    edit("txInfoTitle", "innerText", `Transaction ${Buffer.from(sha256(sha256(Buffer.from(`${tx}`, "utf-8")))).toString("hex").slice(0, 20)}`)
+    if (blockIndex !== -1) {
+        edit("txInfoBlockIndexField", "innerText", `#${blocks.length-blockIndex}`)
+        edit("txInfoConfField", "innerText", blockIndex+1)
+        edit("txInfoDateField", "innerText", (new Date(getTs(block)*1000)).toLocaleString())
+    }
+    else {
+        edit("txInfoBlockIndexField", "innerText", "In mempool, unverified")
+        edit("txInfoConfField", "innerText", "0")
+        edit("txInfoDateField", "innerText", "No date until verified")
+    }
+}
+function remove(list, itemToRemove) {
+    return list.filter(item => item !== itemToRemove)
 }

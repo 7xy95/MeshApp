@@ -1,6 +1,6 @@
 {
   "name": "mesh",
-  "version": "1.2.8",
+  "version": "2.0.0",
   "description": "",
   "main": "main.js",
   "repository": {
@@ -25,7 +25,9 @@
   },
   "dependencies": {
     "@noble/curves": "^2.0.1",
+    "@sylphx/webgpu": "^1.0.5",
     "electron-squirrel-startup": "^1.0.1",
+    "systeminformation": "^5.33.1",
     "update-electron-app": "^3.1.2"
   }
 }
