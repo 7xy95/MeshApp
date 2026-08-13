@@ -395,8 +395,6 @@
             <label style="display: flex; align-items: center; gap: 10px; margin-top: 15px; margin-bottom: 15px">
                 <span style="width: 250px">Specific address to search: </span>
                 <input class="input" id="searchingAddress" oninput="
-                document.getElementById('hideSystemMined').checked = true
-                run('hideSystemMined = true')
                 run('updateBlockData()')
                 " style="width: 250px">
             </label>
@@ -406,10 +404,6 @@
                     <span class="value" id="searchBalance" style="margin-left: 6px"></span>
                 </p>
             </div>
-            <label style="display: flex">
-                <p style="margin-right: 15px">Hide empty system-mined blocks </p>
-                <input checked id="hideSystemMined" type="checkbox" onchange="run(`hideSystemMined = ${this.checked}`); run('void refresh(true)')" style="border-radius: 0; border: none">
-            </label>
             <div>
                 <p class="blockInfo">
                     <span class="value">Block Index</span>
@@ -507,6 +501,9 @@
         </div>
     </div>
 </div>
+<div id="debug" style="position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; background-color: #162633; display: none; z-index: 999; overflow: auto">
+    <p id="debugData" style="margin: 15px; font-family: monospace; font-size: 13px"></p>
+</div>
 <script>
     let popup = -1
     let page = 0
@@ -548,6 +545,17 @@
         run('mine = !mine')
         if (await get('mine')) {document.getElementById('toggleMiningBtn').innerText = 'Stop Mining'}
         else {document.getElementById('toggleMiningBtn').innerText = 'Start Mining'}
+    }
+
+    function toggleDebug() {
+        if (document.getElementById("debug").style.display === "none") {
+            document.getElementById("debug").style.display = "flex"
+            run('debug = true')
+        }
+        else {
+            document.getElementById("debug").style.display = "none"
+            run('debug = false')
+        }
     }
 </script>
 <script src="js/ui.js"></script>

@@ -1,4 +1,5 @@
 const { ipcMain } = require("electron")
+const { globalShortcut } = require("electron")
 const fs = require("fs")
 const vm = require("vm")
 const path = require("path")
@@ -69,6 +70,10 @@ global.logOut = logOut
 let ss = null
 function startApp(window) {
     if (appStarted) {return}
+    globalShortcut.register("CommandOrControl+Shift+D", () => {
+        callRenderer("toggleDebug")
+        console.log("DEBUG")
+    })
     appStarted = true
     win = window
 
@@ -90,6 +95,7 @@ function startApp(window) {
 
     void loadSession()
     void loadNodes()
+    void updateDebug()
     void start()
     if (ss === null) {
         ss = setInterval(() => {

@@ -96,7 +96,7 @@ async function loadSession(Start=true) {
             minBattery = 25
         }
         else {
-            edit("minBattery", "value", savedMinBattery*100)
+            edit("minBattery", "value", savedMinBattery)
             minBattery = savedMinBattery
         }
         edit("rewardAddress", "value", data.rewardAddress)

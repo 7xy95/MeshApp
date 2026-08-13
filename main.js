@@ -1,4 +1,4 @@
-const { app, BrowserWindow, powerMonitor } = require("electron")
+const { app, BrowserWindow, powerMonitor, globalShortcut} = require("electron")
 const path = require("path")
 const fs = require("fs")
 const http = require("node:http")
@@ -103,6 +103,9 @@ app.on("activate", () => {
 })
 app.on("window-all-closed", (event) => {
     event.preventDefault()
+})
+app.on("will-quit", () => {
+    globalShortcut.unregisterAll()
 })
 
 powerMonitor.on("resume", async () => {

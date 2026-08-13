@@ -19,79 +19,46 @@ async function updateBlockData() {
         edit("explorerAmountText", "innerText","Amount")
         style("searchBalanceInfo", "display", "none")
     }
-    if (hideSystemMined) {
-        let rowCount = await value("maxTxDisplay")
-        let totalInfo = 0
-        let i = blocks.length
-        while (totalInfo <= rowCount) {
-            i--
-            if (i < 1) {return}
-            let block = blocks[i]
-            let index = block.indexOf(",")
-            let txs = block.slice(index+1)
-            txs = split_(txs)
-            for (let tx of txs) {
-                if (tx.startsWith("SYSTEM|8943e2763da16d5da9276b5ed900a78ff6ad9cfa|") || tx.startsWith("SYSTEM|0000000000000000000000000000000000000000|")) {
-                    if (txs.length === 1) {break}
-                }
-                if (tx.startsWith("SYSTEM|")) {
-                    tx = tx.split("|")
-                    let to = parseAddr(tx[1])
-                    if (searchSpecific && tx[0] !== addrSearch && tx[1] !== addrSearch) {continue}
-                    let amount = ""
-                    if (searchSpecific) {amount = "+" + (Number(tx[2]) + getMinerRewards(txs))}
-                    else {amount = Number(tx[2]) + getMinerRewards(txs)}
-                    callRenderer("addItem", [i+1, "Block Mined", truncateAddress(to), amount, "", tx[1]])
-                    totalInfo += 1
-                }
-                else if (!tx.startsWith("MSG|")) {
-                    tx = tx.split("|")
-                    let to = parseAddr(tx[1])
-                    let from = parseAddr(tx[0])
-                    let amount = Number(tx[2])
-                    if (searchSpecific && tx[0] !== addrSearch && tx[1] !== addrSearch) {continue}
-                    if (!searchSpecific) {callRenderer("addItem", ["", truncateAddress(from), truncateAddress(to), amount - getFee(amount), tx[0], tx[1]])}
-                    else {
-                        if (tx[0] === addrSearch) {
-                            callRenderer("addItem", ["", truncateAddress(from), truncateAddress(to), "-" + (amount - getFee(amount)), tx[0], tx[1], true])
-                        }
-                        else {
-                            callRenderer("addItem", ["", truncateAddress(from), truncateAddress(to), "+" + (amount - getFee(amount)), tx[0], tx[1]])
-                        }
+    let rowCount = await value("maxTxDisplay")
+    let totalInfo = 0
+    let i = blocks.length
+    while (totalInfo <= rowCount) {
+        i--
+        if (i < 1) {return}
+        let block = blocks[i]
+        let index = block.indexOf(",")
+        let txs = block.slice(index+1)
+        txs = split_(txs)
+        for (let tx of txs) {
+            // if (tx.startsWith("SYSTEM|8943e2763da16d5da9276b5ed900a78ff6ad9cfa|")) {
+            //     if (txs.length === 1) {break}
+            // }
+            if (tx.startsWith("SYSTEM|")) {
+                tx = tx.split("|")
+                let to = parseAddr(tx[1])
+                if (searchSpecific && tx[0] !== addrSearch && tx[1] !== addrSearch) {continue}
+                let amount = ""
+                if (searchSpecific) {amount = "+" + (Number(tx[2]) + getMinerRewards(txs))}
+                else {amount = Number(tx[2]) + getMinerRewards(txs)}
+                callRenderer("addItem", [i+1, "Block Mined", truncateAddress(to), amount, "", tx[1]])
+                totalInfo += 1
+            }
+            else if (!tx.startsWith("MSG|")) {
+                tx = tx.split("|")
+                let to = parseAddr(tx[1])
+                let from = parseAddr(tx[0])
+                let amount = Number(tx[2])
+                if (searchSpecific && tx[0] !== addrSearch && tx[1] !== addrSearch) {continue}
+                if (!searchSpecific) {callRenderer("addItem", ["", truncateAddress(from), truncateAddress(to), amount - getFee(amount), tx[0], tx[1]])}
+                else {
+                    if (tx[0] === addrSearch) {
+                        callRenderer("addItem", ["", truncateAddress(from), truncateAddress(to), "-" + (amount - getFee(amount)), tx[0], tx[1], true])
                     }
-                    totalInfo += 1
+                    else {
+                        callRenderer("addItem", ["", truncateAddress(from), truncateAddress(to), "+" + (amount - getFee(amount)), tx[0], tx[1]])
+                    }
                 }
-            }
-        }
-    }
-    else {
-        let rowCount = await value("maxTxDisplay")
-        let totalInfo = 0
-        let i = blocks.length
-        while (totalInfo <= rowCount) {
-            i--
-            if (i < 1) {
-                return
-            }
-            let block = blocks[i]
-            let index = block.indexOf(",")
-            let txs = block.slice(index + 1)
-            txs = split_(txs)
-            for (let tx of txs) {
-                if (tx.startsWith("SYSTEM|")) {
-                    tx = tx.split("|")
-                    let to = parseAddr(tx[1])
-                    callRenderer("addItem", [i+1, "Block Mined", truncateAddress(to), Number(tx[2]) + getMinerRewards(txs), "", tx[1]])
-                    totalInfo += 1
-                }
-                else if (!tx.startsWith("MSG|")) {
-                    tx = tx.split("|")
-                    let to = parseAddr(tx[1])
-                    let from = parseAddr(tx[0])
-                    let amount = Number(tx[2])
-                    callRenderer("addItem", ["", truncateAddress(from), truncateAddress(to), amount - getFee(amount), tx[0], tx[1]])
-                    totalInfo += 1
-                }
+                totalInfo += 1
             }
         }
     }
@@ -201,7 +168,7 @@ async function refresh(once=false, checkVersion=true) {
     }
 }
 async function mineLoop() {
-    let nonce = 998_000_000
+    let nonce = 1_000_000_000
     let extraNonce = 0
     while (true) {
         try {
@@ -220,9 +187,9 @@ async function mineLoop() {
             let txs = [...mempool]
             txs.unshift(`SYSTEM|${miningAddress}|${getBlockReward(blocks.length)}|0`)
 
-            if (nonce < 2**32-4_000_001) {nonce += 2_000_000}
+            if (nonce < 2**32-20_000_001) {nonce += 2_000_000}
             else {
-                nonce = 998_000_000
+                nonce = 1_000_000_000
                 extraNonce += 1
                 if (extraNonce >= 1000) {
                     extraNonce = 0
@@ -241,21 +208,26 @@ async function mineLoop() {
                 const ts = Math.floor(Date.now()/1000)
                 let prefix = `${priorHash}|${merkleRoot}|${ts}|`
                 if (extraNonce !== 0) {prefix += String(extraNonce)}
-                const result = await gpuHash(prefix, difficultyBytes, nonce, 2_000_000)
-                totalHashes += result.attempts
-                if (result.found) {
-                    const header = prefix + String(result.nonce)
-                    const block = `${header},${JSON.stringify(txs)}`
-                    if (verifyBlock(block)) {
-                        mempool = []
-                        blocks.push(block)
-                        cacheBlock(block)
-                        await broadcastBlock(block, getTipHash())
-                        totalHashesFound += 1
-                        saveBlocks()
-                    }
-                    else {
-                        console.log(`Block ${block} rejected`)
+
+                let r1 = gpuHash(prefix, difficultyBytes, nonce, 2_000_000)
+                let r2 = gpuHash(prefix, difficultyBytes, nonce+2_000_000, 2_000_000)
+                let results = await Promise.all([r1, r2])
+                for (let result of results) {
+                    totalHashes += result.attempts
+                    if (result.found) {
+                        const header = prefix + String(result.nonce)
+                        const block = `${header},${JSON.stringify(txs)}`
+                        if (verifyBlock(block)) {
+                            mempool = []
+                            blocks.push(block)
+                            cacheBlock(block)
+                            await broadcastBlock(block, getTipHash())
+                            totalHashesFound += 1
+                            saveBlocks()
+                        }
+                        else {
+                            console.log(`Block ${block} rejected`)
+                        }
                     }
                 }
             }
@@ -415,5 +387,36 @@ async function updateBatteryLevel() {
         }
         catch {}
         await sleep(5000)
+    }
+}
+
+async function updateDebug() {
+    while (true) {
+        if (!debug) {await sleep(100); continue}
+        edit("debugData", "innerHTML",`
+                version: ${APP_VERSION}<br>
+                height: ${blocks.length}<br>
+                tipHash: ${getTipHash()}<br>
+                mempoolSize: ${mempool.length}<br>
+                stop: ${stop}<br>
+                address: ${address}<br><br>
+                
+                miningAddress: ${miningAddress}<br>
+                lastBlockAge: ${blocks.length ? Math.round((Date.now()-(blocks.length ? getTs(blocks[blocks.length-1]) * 1000 : 0))/1000) + "s" : ""}<br>
+                mine: ${mine}<br>
+                useGPU: ${useGPU}<br>
+                totalHashes: ${totalHashes}<br>
+                totalHashesFound: ${totalHashesFound}<br>
+                throttleTime: ${throttleTime}<br>
+                minBattery: ${minBattery}<br>
+                
+                url: ${tunnelUrl}<br>
+                portUsed: ${port}<br>
+                allNodesL: ${allNodes.length}<br>
+                activeNodesL: ${activeNodes.length}<br>
+                activeNodes:<br>${activeNodes.join("<br>")}<br>
+            `
+        )
+        await sleep(250)
     }
 }

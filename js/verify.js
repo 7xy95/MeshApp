@@ -73,6 +73,7 @@ function verifyBlock(block) {
         for (const tx of txs.slice(1)) {
             let tx_ = tx.split("||")[0]
             if (tx_.startsWith("MSG|")) {
+                if (blocks.length > 23000) {return false}
                 [, from, , , txNonce,] = tx_.split("|")
                 if (!verifyMsg(tx, false) || nonceCache.has(`${from}|${txNonce}`)) {return false}
             }

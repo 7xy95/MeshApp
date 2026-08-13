@@ -66,8 +66,9 @@ async function getNodes() {
         }
         catch (error) {return false}
     }
+    if (allNodes.length + activeNodes.length === 0) {await updateURL()}
     for (let i = 0; i<3; i++) {
-        g([...allNodes, ...activeNodes][Math.floor(Math.random()*(activeNodes.length+allNodes.length))])
+        await g([...allNodes, ...activeNodes][Math.floor(Math.random()*(activeNodes.length+allNodes.length))])
     }
 }
 async function shareUrl() {

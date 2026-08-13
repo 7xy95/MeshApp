@@ -30,6 +30,10 @@ async function startLoad() {
         blocks = savedBlocks
     }
     let savedBlocks = getSavedBlocks()
+    difficultyCache = [230]
+    balancesCache = {}
+    nonceCache = new Set()
+    blocks = []
     for (let block of savedBlocks) {
         blocks.push(block)
         cacheBlock(block)
