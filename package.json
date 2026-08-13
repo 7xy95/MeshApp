@@ -29,5 +29,8 @@
     "electron-squirrel-startup": "^1.0.1",
     "systeminformation": "^5.33.1",
     "update-electron-app": "^3.1.2"
+  },
+  "optionalDependencies": {
+    "@sylphx/webgpu-win32-x64-msvc": "^1.0.4"
   }
 }
