@@ -14,7 +14,7 @@ jobs:
         with:
           node-version: 24
 
-      - run: npm install
+      - run: npm install --package-lock=false
 
       - run: npm install @sylphx/webgpu-win32-x64-msvc@1.0.4 --save-optional
 
