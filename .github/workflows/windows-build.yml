@@ -14,13 +14,18 @@ jobs:
         with:
           node-version: 24
 
-      - name: Clean install for Windows
+      - name: Clean install
         shell: cmd
         run: |
           if exist node_modules rmdir /s /q node_modules
           if exist package-lock.json del package-lock.json
           npm install --os=win32 --cpu=x64
-          npm install @sylphx/webgpu-win32-x64-msvc@1.0.4 --save-optional --os=win32 --cpu=x64
+
+      - name: Check WebGPU packages
+        shell: cmd
+        run: |
+          dir node_modules\@sylphx
+          dir node_modules\@sylphx\webgpu
 
       - name: Build Windows x64
         run: npm run make -- --platform=win32 --arch=x64
