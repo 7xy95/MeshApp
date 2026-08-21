@@ -1,6 +1,6 @@
 {
   "name": "mesh",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "description": "",
   "main": "main.js",
   "repository": {
@@ -18,19 +18,14 @@
     "@electron-forge/maker-rpm": "^7.11.1",
     "@electron-forge/maker-squirrel": "^7.11.1",
     "@electron-forge/maker-zip": "^7.11.1",
-    "@electron-forge/plugin-auto-unpack-natives": "^7.11.1",
     "@electron-forge/plugin-fuses": "^7.11.1",
     "@electron/fuses": "^1.8.0",
     "electron": "^41.4.0"
   },
   "dependencies": {
     "@noble/curves": "^2.0.1",
-    "@sylphx/webgpu": "^1.0.5",
     "electron-squirrel-startup": "^1.0.1",
     "systeminformation": "^5.33.1",
     "update-electron-app": "^3.1.2"
-  },
-  "optionalDependencies": {
-    "@sylphx/webgpu-win32-x64-msvc": "^1.0.4"
   }
 }

@@ -48,21 +48,25 @@ async function updateBlockData() {
                 let to = parseAddr(tx[1])
                 let from = parseAddr(tx[0])
                 let amount = Number(tx[2])
+                let fee = 0
+                if (!i>FEE_CHANGE_H) {
+                    amount -= getFee(amount)
+                    fee = Number(tx[2])+1
+                }
                 if (searchSpecific && tx[0] !== addrSearch && tx[1] !== addrSearch) {continue}
-                if (!searchSpecific) {callRenderer("addItem", ["", truncateAddress(from), truncateAddress(to), amount - getFee(amount), tx[0], tx[1]])}
+                if (!searchSpecific) {callRenderer("addItem", ["", truncateAddress(from), truncateAddress(to), amount, tx[0], tx[1]])}
                 else {
                     if (tx[0] === addrSearch) {
-                        callRenderer("addItem", ["", truncateAddress(from), truncateAddress(to), "-" + (amount - getFee(amount)), tx[0], tx[1], true])
+                        callRenderer("addItem", ["", truncateAddress(from), truncateAddress(to), "-" + (amount + fee), tx[0], tx[1], true])
                     }
                     else {
-                        callRenderer("addItem", ["", truncateAddress(from), truncateAddress(to), "+" + (amount - getFee(amount)), tx[0], tx[1]])
+                        callRenderer("addItem", ["", truncateAddress(from), truncateAddress(to), "+" + (amount), tx[0], tx[1]])
                     }
                 }
                 totalInfo += 1
             }
         }
     }
-    await sleep(60000)
 }
 async function refresh(once=false, checkVersion=true) {
     function setHistory() {
@@ -79,9 +83,10 @@ async function refresh(once=false, checkVersion=true) {
                 if (to === address) {callRenderer("addHistoryElement", ["msg", -1, 0, parseAddr(from), messageText, "", txIndex]); t++}
                 continue
             }
-            let [from, to, amount,] = tx.split("|")
-            if (from === address) {callRenderer("addHistoryElement", ["tx", -1, -1*Number(amount)/1000, parseAddr(to), "", "", txIndex]); t++}
-            if (to === address) {callRenderer("addHistoryElement", ["tx", -1, (Number(amount)-getFee(Number(amount)))/1000, parseAddr(from), "", "", txIndex]); t++}
+            let [from, to, amount, , fee] = tx.split("|")
+            fee = Number(fee || 0)
+            if (from === address) {callRenderer("addHistoryElement", ["tx", -1, -(Number(amount)+1+fee)/1000, parseAddr(to), "", "", txIndex]); t++}
+            if (to === address) {callRenderer("addHistoryElement", ["tx", -1, Number(amount)/1000, parseAddr(from), "", "", txIndex]); t++}
         }
         let i = -1; let b = blocks.length+1
         for (let block of [...blocks].reverse()) {
@@ -108,9 +113,16 @@ async function refresh(once=false, checkVersion=true) {
                     if (to === address) {callRenderer("addHistoryElement", ["msg", i, 0, parseAddr(from), messageText, block, txIndex]); t++}
                     continue
                 }
-                let [from, to, amount,] = tx.split("|")
-                if (from === address) {callRenderer("addHistoryElement", ["tx", i, -1*Number(amount)/1000, parseAddr(to), "", block, txIndex]); t++}
-                if (to === address) {callRenderer("addHistoryElement", ["tx", i, (Number(amount)-getFee(Number(amount)))/1000, parseAddr(from), "", block, txIndex]); t++}
+                let [from, to, amount,, fee] = tx.split("|")
+                fee = Number(fee || 0)
+                if (b > FEE_CHANGE_H) {
+                    if (from === address) {callRenderer("addHistoryElement", ["tx", i, -(Number(amount)+1+fee)/1000, parseAddr(to), "", block, txIndex]); t++}
+                    if (to === address) {callRenderer("addHistoryElement", ["tx", i, Number(amount)/1000, parseAddr(from), "", block, txIndex]); t++}
+                }
+                else {
+                    if (from === address) {callRenderer("addHistoryElement", ["tx", i, -1*Number(amount)/1000, parseAddr(to), "", block, txIndex]); t++}
+                    if (to === address) {callRenderer("addHistoryElement", ["tx", i, (Number(amount)-getFee(Number(amount)))/1000, parseAddr(from), "", block, txIndex]); t++}
+                }
             }
         }
     }
@@ -128,15 +140,11 @@ async function refresh(once=false, checkVersion=true) {
                 edit("unVBalance", "innerText", `${(unV_/1000).toFixed(3)} MESH`)
                 edit("vBalanceTop", "innerText", `Balance: ${(getSpendableBalance(address)/1000).toFixed(3)} MESH`)
                 edit("addressTop", "innerText", `Your Address: ${address}`)
-                if (page === 1) {void updateBlockData(); continue}
+                if (page === 1) {void updateBlockData()}
 
                 edit("difficulty", "innerText", `${format(2**(256-getDifficultyBits(blocks.length)))}`)
                 edit("blockCount", "innerText", `${blocks.length}`)
             }
-
-            if (Date.now() % 100 === 0) {void getLatestVersion()}
-            if (latestVersion !== APP_VERSION && checkVersion && latestVersion !== undefined) {edit("version", "innerHTML", `<a href="https://github.com/7xy95/MeshApp/releases" style="color: dodgerblue">Get ${latestVersion}</a>`)}
-            else {edit("version", "innerText", APP_VERSION)}
 
             let w = blocks.length - Math.floor(blocks.length/10)*10
             let amount = 0
@@ -147,7 +155,8 @@ async function refresh(once=false, checkVersion=true) {
 
             edit("blockReward", "innerText", `${((getBlockReward(blocks.length)+getMinerRewards(mempool))/1000).toFixed(3)} MESH`)
             edit("hashrate", "innerText",format(totalHashes - lastHashes) + "/s")
-            edit("nextHalving", "innerText",String(getNextHalving()))
+            edit("mempoolSize", "innerText", `${mempool.length}, ${getMaxTxs()-1}/Block`)
+            edit("blockEntryFee", "innerText", `${((Number(mempool[getMaxTxs()-2]?.split("||")[0].split("|")[4] || 0)+1)/1000).toFixed(3)} MESH`)
 
             edit("estMesh", "innerText", getMeshPerMin(totalHashes - lastHashes).toFixed(3))
             lastHashes = totalHashes
@@ -186,8 +195,9 @@ async function mineLoop() {
             }
             let txs = [...mempool]
             txs.unshift(`SYSTEM|${miningAddress}|${getBlockReward(blocks.length)}|0`)
+            txs = txs.slice(0, getMaxTxs())
 
-            if (nonce < 2**32-20_000_001) {nonce += 2_000_000}
+            if (nonce < 2**32-(batchSize*2_000_000)) {nonce += batchSize*1_000_000}
             else {
                 nonce = 1_000_000_000
                 extraNonce += 1
@@ -209,18 +219,22 @@ async function mineLoop() {
                 let prefix = `${priorHash}|${merkleRoot}|${ts}|`
                 if (extraNonce !== 0) {prefix += String(extraNonce)}
 
-                let r1 = gpuHash(prefix, difficultyBytes, nonce, 2_000_000)
-                let r2 = gpuHash(prefix, difficultyBytes, nonce+2_000_000, 2_000_000)
-                let results = await Promise.all([r1, r2])
+                let r1 = gpuHash(prefix, difficultyBytes, nonce, batchSize*1_000_000)
+                let results = await Promise.all([r1])
                 for (let result of results) {
                     totalHashes += result.attempts
                     if (result.found) {
                         const header = prefix + String(result.nonce)
                         const block = `${header},${JSON.stringify(txs)}`
                         if (verifyBlock(block)) {
-                            mempool = []
                             blocks.push(block)
                             cacheBlock(block)
+
+                            let index = block.indexOf(",")
+                            let txs = block.slice(index+1)
+                            txs = new Set(split_(txs))
+                            mempool = mempool.filter(tx => !txs.has(tx))
+
                             await broadcastBlock(block, getTipHash())
                             totalHashesFound += 1
                             saveBlocks()
@@ -251,9 +265,14 @@ async function mineLoop() {
                     if (passed) {
                         const block = `${header},${JSON.stringify(txs)}`
                         if (verifyBlock(block)) {
-                            mempool = []
                             blocks.push(block)
                             cacheBlock(block)
+
+                            let index = block.indexOf(",")
+                            let txs = block.slice(index+1)
+                            txs = new Set(split_(txs))
+                            mempool = mempool.filter(tx => !txs.has(tx))
+
                             await broadcastBlock(block, getTipHash())
                             saveBlocks()
                             totalHashesFound += 1
@@ -364,8 +383,11 @@ async function manageActivePeers(once=false) {
                 }
             }
             if (once) {return}
-            if (Math.random() < 0.2) {void shareUrl()}
-            await sleep(8_000)
+            if (Math.random() < 0.2) {
+                void shareUrl()
+                void getNodes()
+            }
+            await sleep(15_000)
         }
         catch (error) {console.log(error)}
     }
@@ -394,7 +416,6 @@ async function updateDebug() {
     while (true) {
         if (!debug) {await sleep(100); continue}
         edit("debugData", "innerHTML",`
-                version: ${APP_VERSION}<br>
                 height: ${blocks.length}<br>
                 tipHash: ${getTipHash()}<br>
                 mempoolSize: ${mempool.length}<br>

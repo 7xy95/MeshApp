@@ -24,6 +24,7 @@ async function attachWindow(window) {
 function loadScript(p) {
     let fullPath = path.join(__dirname, p)
     let code = fs.readFileSync(fullPath, "utf-8")
+
     vm.runInThisContext(code, {
         filename: fullPath
     })
@@ -102,6 +103,17 @@ function startApp(window) {
             void saveSession()
             void saveNodes()
         }, 10_000)
+        let lastMempool = ""
+        setInterval(() => {
+            let currentMempool = mempool.join("\n")
+            if (currentMempool === lastMempool) {return}
+            mempool.sort((a,b) => {
+                a = Number(a.split("||")[0].split("|")[4])
+                b = Number(b.split("||")[0].split("|")[4])
+                return b - a
+            })
+            lastMempool = mempool.join("\n")
+        }, 500)
     }
 }
 

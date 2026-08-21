@@ -25,83 +25,40 @@ function getMinerRewards(txs) {
     let total = 0
     for (let tx of txs) {
         if (tx.startsWith("MSG|") || tx.startsWith("SYSTEM|")) {continue}
-        total += getFee(Number(tx.split("||")[0].split("|")[2]))
+        let [, , amount, , fee] = tx.split("||")[0].split("|")
+        amount = Number(amount)
+        if (fee === undefined) {
+            total += getFee(amount)
+        }
+        else {
+            total += 1 + Number(fee)
+        }
     }
     return total
 }
 function getSpendableBalance(address, ignoreTx="") {
-    let vBalance = 0
-    for (let block of blocks) {
-        let index = block.indexOf(",")
-        block = block.slice(index+1)
-        let txs = split_(block)
-        let i = -1
-        for (let tx of txs) {
-            i++
-            if (tx.startsWith("SYSTEM|")) {
-                let parts = tx.split("|")
-                if (parts[1] === address) {
-                    vBalance += Number(parts[2])
-                    if (i === 0) {vBalance += getMinerRewards(txs)}
-                }
-            }
-            else {
-                tx = tx.split("||")[0]
-                if (tx.startsWith("MSG|")) {
-                    let [, from, , amount, ,] = tx.split("|")
-                    if (from === address) {vBalance -= Number(amount)}
-                    continue
-                }
-                let [from, to, amount,] = tx.split("|")
-                if (from === address) {vBalance -= Number(amount)}
-                if (to === address) {vBalance += Number(amount) - getFee(Number(amount))}
-            }
-        }
-    }
+    let fee = undefined
+    let vBalance = balancesCache[address] || 0
     for (let tx of mempool) {
         if (tx === ignoreTx) {continue}
         let from = ""; let amount = 0
         tx = tx.split("||")[0]
         if (tx.startsWith("MSG|")) {[, from, , amount, ,] = tx.split("|")}
-        else {[from, , amount,] = tx.split("|")}
+        else {[from, , amount, , fee] = tx.split("|")}
         amount = Number(amount)
-        if (from === address) {vBalance -= amount}
+        if (from === address) {
+            if (blocks.length > FEE_CHANGE_H) {
+                vBalance -= amount + 1 + Number(fee)
+            }
+            else {
+                vBalance -= amount
+            }
+        }
     }
     return vBalance
 }
 function getBalance(address) {
-    let vBalance = 0
-    let bIndex = -1
-    for (let block of blocks) {
-        bIndex++
-        let index = block.indexOf(",")
-        block = block.slice(index+1)
-        let txs = split_(block)
-        let i = -1
-        for (let tx of txs) {
-            i++
-            if (tx.startsWith("SYSTEM|")) {
-                let parts = tx.split("|")
-                if (parts[1] === address) {
-                    // if (bIndex < C1) vBalance += Number(parts[2])
-                    // else vBalance += Number(parts[2])
-                    vBalance += Number(parts[2])
-                    if (i === 0) {vBalance += getMinerRewards(txs)}
-                }
-            }
-            else {
-                tx = tx.split("||")[0]
-                if (tx.startsWith("MSG|")) {
-                    let [, from, , amount, ,] = tx.split("|")
-                    if (from === address) {vBalance -= Number(amount)}
-                    continue
-                }
-                let [from, to, amount,] = tx.split("|")
-                if (from === address) {vBalance -= Number(amount)}
-                if (to === address) {vBalance += Number(amount) - getFee(Number(amount))}
-            }
-        }
-    }
+    let vBalance = balancesCache[address] || 0
     let balance = vBalance
     for (let tx of mempool) {
         tx = tx.split("||")[0]
@@ -110,9 +67,24 @@ function getBalance(address) {
             if (from === address) {balance -= Number(amount)}
             continue
         }
-        let [from, to, amount,] = tx.split("|")
-        if (from === address) {balance -= Number(amount)}
-        if (to === address) {balance += Number(amount) - getFee(Number(amount))}
+        let [from, to, amount, , fee] = tx.split("|")
+        amount = Number(amount)
+        if (from === address) {
+            if (blocks.length > FEE_CHANGE_H) {
+                balance -= amount + 1 + Number(fee)
+            }
+            else {
+                balance -= amount
+            }
+        }
+        if (to === address) {
+            if (blocks.length > FEE_CHANGE_H) {
+                balance += amount
+            }
+            else {
+                balance += amount - getFee(amount)
+            }
+        }
     }
     return [vBalance, balance]
 }
@@ -232,4 +204,9 @@ function compare(original, candidate, startBlockHeight) {
         return t
     }
     return getValue(candidate) > getValue(original)
+}
+function getMaxTxs() {
+    let bits = getDifficultyBits(blocks.length)
+    if (bits >= 216) {return 6}
+    return Math.min(201, 6 + Math.floor(2 ** (215 - bits)))
 }

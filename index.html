@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Mesh Wallet</title>
+    <title>Mesh Wallet v2.1.0</title>
     <style>
         body {
             margin: 0;
@@ -282,7 +282,8 @@
 <body>
 <div id="logInPanel" class="logInPanel">
     <p id="enterSeedText">Enter wallet seed:</p>
-    <input class="input" type="password" id="walletSeedInput">
+    <input class="input" type="password" id="walletSeedInput" style="width: 300px; margin-bottom: 0">
+    <button class="btn" style="margin-top: 8px" onclick="walletSeedInput.type = walletSeedInput.type === 'password' ? 'text' : 'password'">Show/Hide seed</button>
     <p style="margin-left: 100px; margin-right: 100px; margin-bottom: 0; text-align: center">The wallet seed is a password that will store your Mesh, please ensure
     that you save it somewhere safe. It is also advised to select a secure seed at least 10 characters long</p>
     <button class="btn" type="submit" onclick="run(`logIn(${JSON.stringify(document.getElementById('walletSeedInput').value)})`)">Log In</button>
@@ -320,28 +321,28 @@
                 <p>Network Stats</p>
                 <hr>
                 <p class="info">
-                    <span class="label">Version:</span>
-                    <span class="value" id="version">-1.-1.-1</span>
-                </p>
-                <p class="info">
                     <span class="label">Difficulty:</span>
-                    <span class="value" id="difficulty">-1</span>
+                    <span class="value" id="difficulty">-</span>
                 </p>
                 <p class="info">
                     <span class="label">Retarget:</span>
-                    <span class="value" id="nextDiff">-1</span>
+                    <span class="value" id="nextDiff">-</span>
                 </p>
                 <p class="info" style="margin-top: 24px">
                     <span class="label">Block Height:</span>
-                    <span class="value" id="blockCount">-1</span>
-                </p>
-                <p class="info">
-                    <span class="label">Next Halving:</span>
-                    <span class="value" id="nextHalving">-1</span>
+                    <span class="value" id="blockCount">-</span>
                 </p>
                 <p class="info">
                     <span class="label">Block Reward:</span>
-                    <span class="value" id="blockReward">-1</span>
+                    <span class="value" id="blockReward">-</span>
+                </p>
+                <p class="info" style="margin-top: 24px">
+                    <span class="label">Mempool Size:</span>
+                    <span class="value" id="mempoolSize">-</span>
+                </p>
+                <p class="info">
+                    <span class="label">Entry Fee:</span>
+                    <span class="value" id="blockEntryFee">-</span>
                 </p>
             </div>
             <div class="panel" style="margin-bottom: 12px; flex: 0">
@@ -425,8 +426,9 @@
         <button class="btn" onclick="closePopup()" style="font-size: 32px; margin-top: 0; position: absolute; top: 10px; right: 10px">×</button>
         <input class="input" id="addressInput" placeholder="Enter Receiver's Address..." style="margin-top: 10px; width: 300px">
         <input class="input" id="dataInput" style="width: 300px" oninput="setFeeText()">
-        <button class="btn" onclick="submitTx()" style="row-gap: 0">Send</button>
-        <p style="color: #ed4141; margin-top: 20px; font-size: 14px" id="sendError"></p>
+        <input class="input" id="feeInput" placeholder="Enter Extra Fees (Optional)" oninput="setFeeText()" style="width: 300px">
+        <p style="color: #ed4141; margin-bottom: 10px; font-size: 14px" id="sendError"></p>
+        <button class="btn" onclick="submitTx()" style="row-gap: 0; margin-top: 10px">Send</button>
     </div>
 </div>
 <div class="popup" style="display: none" id="contacts">
@@ -450,6 +452,10 @@
         <label style="display: flex; margin-top: 8px">
             <p style="margin: 10px 15px 0 0; width: 200px; height: 90%">Throttle (ms):</p>
             <input value="0" id="throttleTime" class="input" onchange="run(`throttleTime = ${Number(this.value) || 0}`)" style="position: relative; top: 2px; width: 360px; height: 90%">
+        </label>
+        <label style="display: flex; margin-top: 8px">
+            <p style="margin: 10px 15px 0 0; width: 200px">Batch size (Millions):</p>
+            <input value="2" id="batchSize" class="input" onchange="run(`batchSize = ${Number(this.value) || 2}`)" style="position: relative; top: 2px; width: 360px; height: 90%">
         </label>
         <label style="display: flex; margin-top: 8px">
             <p style="margin: 10px 15px 0 0; width: 200px">Min Battery (%):</p>

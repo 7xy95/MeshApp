@@ -126,12 +126,13 @@ function parseTx(tx) {
         }, true]
     }
     else {
-        let [from, to, amount, nonce] = tx.split("|")
+        let [from, to, amount, nonce, fee] = tx.split("|")
         return [{
             "from": from,
             "to": to,
             "amount": amount,
-            "nonce": nonce
+            "nonce": nonce,
+            "fee": fee
         }, false]
     }
 }
@@ -155,7 +156,13 @@ function openTxInfo(blockIndex, txIndex) {
     }
     [txInfo, isMsg] = parseTx(tx)
 
-    let fees = (getFee(txInfo.amount)/1000).toFixed(3)
+    let fees = 0
+    if (blockIndex !== -1 && blockIndex <= FEE_CHANGE_H) {
+        fees = ((1+Number(txInfo.fee))/1000).toFixed(3)
+    }
+    else {
+        fees = (getFee(txInfo.amount)/1000).toFixed(3)
+    }
     txInfo.amount = (txInfo.amount/1000).toFixed(3)
     if (txIndex === 0) {
         fees = "0.000"

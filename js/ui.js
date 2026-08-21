@@ -15,15 +15,27 @@ function openContactPopup() {
 }
 async function setFeeText() {
     if (popup === 0) {
-        let amount = document.getElementById("dataInput").value
-        amount = Math.round(Number(amount)*1000)
-        amount = (amount - Number(await get(`getFee(${amount})`)))/1000
-        console.log(get(`getFee(${amount})`))
-        document.getElementById("sendError").innerHTML = `<span style="color: #fdd54f">WARNING: Receiver will receive ${amount} MESH</span>`
+        let fee = document.getElementById("feeInput").value
+        if (fee === "" || Number.isNaN(fee)) {fee = 0}
+        fee = Number(fee)*1000 + 1
+        fee = Math.ceil(fee)
+        document.getElementById("sendError").innerHTML = `<span style="color: #fdd54f">Sending costs ${fee/1000} MESH (#${
+            (await get('mempool')).filter(tx => {return Number(tx.split("||")[0].split("|")[4] || 0) >= fee-1}).length+1
+        } in queue)</span>`
     }
 }
 async function submitTx() {
     let toAddress = document.getElementById("addressInput").value
+    let fee = document.getElementById("feeInput").value
+    try {
+        if (fee === "") {fee = 0}
+        fee = Number(fee)*1000
+        fee = Math.ceil(fee)
+    }
+    catch (error) {
+        document.getElementById("sendError").innerText = "ERROR: Invalid fee, must be a number"
+        return
+    }
     document.getElementById("addressInput").value = ""
     toAddress = await get(`parseContact(${JSON.stringify(toAddress)})`)
     let address = await get('address')
@@ -37,18 +49,22 @@ async function submitTx() {
         let amount = document.getElementById("dataInput").value
         document.getElementById("dataInput").value = ""
         amount = Math.round(Number(amount)*1000)
-        if (bal < amount) {
+        if (bal < amount+1+fee) {
             document.getElementById("sendError").innerText = "ERROR: Insufficient funds"
             return
         }
-        if (amount <= 10) {
-            document.getElementById("sendError").innerText = "ERROR: The minimum amount is 0.011"
+        if (amount < 1) {
+            document.getElementById("sendError").innerText = "ERROR: The minimum amount is 0.001"
+            return
+        }
+        let tx = `${address}|${toAddress}|${amount}|${await get('getNextNonce(address)')}|${fee}`
+        tx = await get(`hashTx(${JSON.stringify(tx)})`)
+        console.log(tx)
+        if (!await get(`verifyTx(${JSON.stringify(tx)})`)) {
+            document.getElementById("sendError").innerText = "ERROR: Invalid input"
             return
         }
         closePopup()
-        let tx = `${address}|${toAddress}|${amount}|${await get('getNextNonce(address)')}`
-        tx = await get(`hashTx(${JSON.stringify(tx)})`)
-        console.log(tx)
         run(`broadcastTx(${JSON.stringify(tx)})`)
     }
     else if (popup === 1) {
@@ -75,6 +91,7 @@ function closePopup() {
     document.getElementById("tx").style.display = "none"
     document.getElementById("addressInput").value = ""
     document.getElementById("dataInput").value = ""
+    document.getElementById("feeInput").value = ""
     document.getElementById("sendError").innerText = ""
     popup = -1
 }

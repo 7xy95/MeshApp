@@ -18,7 +18,6 @@ async function updateURL() {
         if (!allNodes.includes(url) && !activeNodes.includes(url) && url !== tunnelUrl) {
             allNodes.push(url)
         }
-        return
     }
     catch (error) {console.log(error)}
 }
@@ -123,24 +122,31 @@ async function broadcastNode(url) {
 }
 
 function getCloudflarePath() {
-    function getResourcePath(...parts) {
+    if (process.platform === "win32") {
         if (app.isPackaged) {
-            return path.join(process.resourcesPath, ...parts)
+            return path.join(process.resourcesPath, "bin", "win-x64", "cloudflared.exe")
         }
-        return path.join(__dirname, ...parts)
+
+        return path.join(__dirname, "bin", "win-x64", "cloudflared.exe")
     }
 
     if (process.platform === "darwin" && process.arch === "arm64") {
-        return getResourcePath("bin", "mac-arm64", "cloudflared")
+        if (app.isPackaged) {
+            return path.join(process.resourcesPath, "bin", "mac-arm64", "cloudflared")
+        }
+
+        return path.join(__dirname, "bin", "mac-arm64", "cloudflared")
     }
 
     if (process.platform === "darwin" && process.arch === "x64") {
-        return getResourcePath("bin", "mac-x64", "cloudflared")
+        if (app.isPackaged) {
+            return path.join(process.resourcesPath, "bin", "mac-x64", "cloudflared")
+        }
+
+        return path.join(__dirname, "bin", "mac-x64", "cloudflared")
     }
 
-    if (process.platform === "win32") {
-        return getResourcePath("bin", "win-x64", "cloudflared.exe")
-    }
+    throw new Error("Unsupported platform for cloudflared")
 }
 function runServer() {
     function readBody(req) {
@@ -163,7 +169,9 @@ function runServer() {
     }
     if (server) {return}
 
-    server = http.createServer(async (req, res) => {
+    server = http.createServer({
+        maxHeaderSize: 2048
+    }, async (req, res) => {
         try {
             if (req.method === "GET" && req.url === "/getPeers") {
                 sendJSON(res, 200, {
@@ -333,7 +341,12 @@ function runServer() {
                 await broadcastBlock(data.block, getTipHash())
                 blocks.push(data.block)
                 cacheBlock(data.block)
-                mempool = []
+
+                let index = data.block.indexOf(",")
+                let txs = data.block.slice(index+1)
+                txs = new Set(split_(txs))
+                mempool = mempool.filter(tx => !txs.has(tx))
+
                 return
             }
             if (req.method === "POST" && req.url === "/node") {

@@ -43,7 +43,7 @@ function saveBlocks() {
     fs.writeFileSync(blocksPath, JSON.stringify(blocks))
 }
 function saveNodes() {
-    fs.writeFileSync(nodesPath, JSON.stringify(allNodes))
+    fs.writeFileSync(nodesPath, JSON.stringify([...allNodes, ...activeNodes]))
 }
 function loadNodes() {
     try {
@@ -67,6 +67,7 @@ async function saveSession() {
         totalHashesFound: totalHashesFound,
         throttle: throttleTime,
         minBattery: minBattery,
+        batchSize: batchSize,
         rewardAddress: await value("rewardAddress")
     }, null, 2))
 }
@@ -85,10 +86,12 @@ async function loadSession(Start=true) {
         useGPU = data.useGPU
         totalHashes = data.totalHashes
         totalHashesFound = data.totalHashesFound
+        batchSize = Number(data.batchSize) || 2
         style("logInPanel", "display","none")
         style("mainPanel", "display","flex")
         edit("useGPUCheckbox", "checked", useGPU)
         edit("throttleTime", "value", data.throttle)
+        edit("batchSize", "value", batchSize)
         throttleTime = data.throttle
         let savedMinBattery = data.minBattery
         if (savedMinBattery === "" || savedMinBattery === null) {
